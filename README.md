@@ -459,3 +459,38 @@ Getitresolved is configured for high-performance serverless deployment on Vercel
 - **Direct-to-Storage Uploads:** Direct client uploads to Vercel Blob bypass the serverless 4.5 MB request payload limit while enforcing user ownership and strict file limits (max 3 images, 5 MB each).
 - **Environment Isolation:** Separate Preview and Production databases, distinct session secrets, and isolated storage tokens ensure complete staging/production safety.
 
+---
+
+## 10. Production Environment Variables & Operational Commands
+
+### 10.1. Required Vercel Environment Variables
+Configure these in **Vercel Dashboard → Settings → Environment Variables**:
+
+| Variable | Description | Example / Format |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection pool URL (transaction pooling mode) | `postgresql://user:pass@pooler.neon.tech/db?pgbouncer=true` |
+| `DIRECT_URL` | Direct connection URL for running Prisma migrations | `postgresql://user:pass@ep-host.neon.tech/db` |
+| `JWT_SECRET` | Cryptographically strong secret key (minimum 32 characters) | `openssl rand -base64 36` |
+| `BLOB_READ_WRITE_TOKEN` | Private Vercel Blob storage access token | `vercel_blob_rw_...` |
+| `GEMINI_API_KEY` | Optional: Gemini API Key for AI triage classification | `AIzaSy...` (fallback rule engine runs if absent) |
+
+### 10.2. Municipal Operations CLI Reference
+
+```bash
+# Verify production database connectivity and essential metadata readiness
+npm run db:verify
+
+# Initialize core municipal departments, categories, and wards without demo complaints
+npm run db:init-meta
+
+# Provision initial secure municipal administrator account
+ADMIN_EMAIL="admin@civicresolve.gov" ADMIN_PASSWORD="YourStrongPassword123!" npm run admin:init
+
+# Run all 37 automated unit and integration tests
+npm run test
+
+# Run build pipeline (compiles client, server, and serverless Lambda bundle)
+npm run vercel-build
+```
+
+
