@@ -9,22 +9,25 @@ import { StatusUpdateModal } from '../components/complaint/StatusUpdateModal';
 import { FlagReviewModal } from '../components/complaint/FlagReviewModal';
 import { ManualReviewModal } from '../components/complaint/ManualReviewModal';
 import { ScoreOverrideModal } from '../components/complaint/ScoreOverrideModal';
+import { Alert } from '../components/common/Alert';
+import { Button } from '../components/common/Button';
 import {
   Building2,
   Calendar,
   Clock,
   MapPin,
-  Tag,
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
   FileText,
-  User,
   Sliders,
   Flag,
   ShieldCheck,
   RotateCw,
   Eye,
+  ImageOff,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 
 export const ComplaintDetailPage: React.FC = () => {
@@ -35,6 +38,7 @@ export const ComplaintDetailPage: React.FC = () => {
   const [complaint, setComplaint] = useState<ComplaintItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Modals state
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -42,6 +46,9 @@ export const ComplaintDetailPage: React.FC = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [overrideModalOpen, setOverrideModalOpen] = useState(false);
   const [retryingAnalysis, setRetryingAnalysis] = useState(false);
+
+  // Image load error tracker
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const fetchComplaint = async () => {
     if (!id) return;
@@ -63,31 +70,55 @@ export const ComplaintDetailPage: React.FC = () => {
 
   const handleStatusUpdate = async (toStatus: any, note: string, isCitizenVisible: boolean, explanation?: string) => {
     if (!complaint) return;
-    await api.updateStatus(complaint.id, { toStatus, note, isCitizenVisible, explanation });
-    await fetchComplaint();
+    try {
+      await api.updateStatus(complaint.id, { toStatus, note, isCitizenVisible, explanation });
+      setActionNotice({ type: 'success', message: 'Status updated successfully.' });
+      setTimeout(() => setActionNotice(null), 4000);
+      await fetchComplaint();
+    } catch (err: any) {
+      setActionNotice({ type: 'error', message: err.message || 'Failed to update status.' });
+    }
   };
 
   const handleFlagReview = async (reason: string) => {
     if (!complaint) return;
-    await api.flagForReview(complaint.id, reason);
-    await fetchComplaint();
+    try {
+      await api.flagForReview(complaint.id, reason);
+      setActionNotice({ type: 'success', message: 'Complaint flagged for administrator review.' });
+      setTimeout(() => setActionNotice(null), 4000);
+      await fetchComplaint();
+    } catch (err: any) {
+      setActionNotice({ type: 'error', message: err.message || 'Failed to flag complaint.' });
+    }
   };
 
   const handleManualReviewDecision = async (categoryId: string, departmentId: string, notes: string) => {
     if (!complaint) return;
-    await api.submitManualReviewDecision(complaint.id, {
-      categoryId,
-      departmentId,
-      reviewDecision: 'APPROVED',
-      notes,
-    });
-    await fetchComplaint();
+    try {
+      await api.submitManualReviewDecision(complaint.id, {
+        categoryId,
+        departmentId,
+        reviewDecision: 'APPROVED',
+        notes,
+      });
+      setActionNotice({ type: 'success', message: 'Manual review completed and department assigned.' });
+      setTimeout(() => setActionNotice(null), 4000);
+      await fetchComplaint();
+    } catch (err: any) {
+      setActionNotice({ type: 'error', message: err.message || 'Failed to submit review decision.' });
+    }
   };
 
   const handleScoreOverride = async (scores: any) => {
     if (!complaint) return;
-    await api.overrideScores(complaint.id, scores);
-    await fetchComplaint();
+    try {
+      await api.overrideScores(complaint.id, scores);
+      setActionNotice({ type: 'success', message: 'Impact scores updated with audit log justification.' });
+      setTimeout(() => setActionNotice(null), 4000);
+      await fetchComplaint();
+    } catch (err: any) {
+      setActionNotice({ type: 'error', message: err.message || 'Failed to override scores.' });
+    }
   };
 
   const handleRetryAnalysis = async () => {
@@ -95,9 +126,11 @@ export const ComplaintDetailPage: React.FC = () => {
     try {
       setRetryingAnalysis(true);
       await api.retryAnalysis(complaint.id);
+      setActionNotice({ type: 'success', message: 'Triage re-analysis completed.' });
+      setTimeout(() => setActionNotice(null), 4000);
       await fetchComplaint();
     } catch (err: any) {
-      alert(`Retry failed: ${err.message}`);
+      setActionNotice({ type: 'error', message: `Retry failed: ${err.message}` });
     } finally {
       setRetryingAnalysis(false);
     }
@@ -105,8 +138,9 @@ export const ComplaintDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-16 text-center text-xs text-slate-500">
-        Loading complaint tracking data...
+      <div className="max-w-5xl mx-auto px-4 py-20 text-center space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-civic-600 border-t-transparent animate-spin mx-auto" />
+        <p className="text-sm text-slate-500">Loading complaint details...</p>
       </div>
     );
   }
@@ -114,18 +148,14 @@ export const ComplaintDetailPage: React.FC = () => {
   if (error || !complaint) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
-        <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-          <AlertCircle className="w-6 h-6" />
+        <div className="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-7 h-7" aria-hidden="true" />
         </div>
-        <h2 className="text-lg font-bold text-slate-900">Unable to load complaint</h2>
-        <p className="text-xs text-slate-500">{error || 'Complaint not found.'}</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
+        <h2 className="text-xl font-bold text-slate-900">Unable to Load Complaint</h2>
+        <p className="text-sm text-slate-600">{error || 'Complaint not found.'}</p>
+        <Button variant="outline" onClick={() => navigate(-1)} icon={<ArrowLeft className="w-4 h-4" />}>
           Back to list
-        </button>
+        </Button>
       </div>
     );
   }
@@ -136,204 +166,265 @@ export const ComplaintDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Top Navigation & Actions Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-            aria-label="Back to previous screen"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-civic-700">{complaint.reference}</span>
-              <StatusBadge status={complaint.status} reviewState={complaint.reviewState} />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">{complaint.title}</h1>
+      {/* Top Breadcrumb & Action Banner */}
+      <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+          <span>Back to List</span>
+        </button>
+
+        <span className="font-mono text-sm font-bold text-civic-700 bg-civic-50 px-3 py-1 rounded-lg border border-civic-200">
+          {complaint.reference}
+        </span>
+      </div>
+
+      {actionNotice && (
+        <Alert
+          variant={actionNotice.type === 'success' ? 'success' : 'error'}
+          onDismiss={() => setActionNotice(null)}
+        >
+          {actionNotice.message}
+        </Alert>
+      )}
+
+      {/* Primary Details Header */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <StatusBadge status={complaint.status} reviewState={complaint.reviewState} />
+            {complaint.department && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+                <Building2 className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
+                {complaint.department.name}
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {complaint.title}
+          </h1>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+            <span className="flex items-center gap-1">
+              <MapPin className="w-4 h-4 text-slate-400" aria-hidden="true" />
+              {complaint.address} &bull; {complaint.serviceArea.name}
+            </span>
+            <span>&bull;</span>
+            <span className="flex items-center gap-1">
+              <Calendar className="w-4 h-4 text-slate-400" aria-hidden="true" />
+              Submitted {new Date(complaint.createdAt).toLocaleDateString()}
+            </span>
           </div>
         </div>
 
-        {/* Operational Actions (Staff & Admin) */}
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+        {/* Operational Actions for Staff / Admin */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start md:self-center">
           {isStaff && complaint.status !== 'RESOLVED' && (
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={() => setStatusModalOpen(true)}
-              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-civic-600 hover:bg-civic-700 rounded-lg shadow-sm transition-colors"
             >
               Update Status
-            </button>
+            </Button>
           )}
 
           {isStaff && complaint.reviewState !== 'REQUIRED' && (
-            <button
+            <Button
+              variant="outline"
+              size="md"
               onClick={() => setFlagModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors"
-              title="Flag for administrator review"
+              icon={<Flag className="w-4 h-4 text-amber-600" />}
             >
-              <Flag className="w-3.5 h-3.5" />
               Flag Assignment
-            </button>
+            </Button>
           )}
 
           {isAdmin && (
             <>
               {complaint.reviewState === 'REQUIRED' && (
-                <button
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={() => setReviewModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-sm transition-colors"
+                  className="bg-purple-600 hover:bg-purple-700"
+                  icon={<ShieldCheck className="w-4 h-4" />}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" />
                   Manual Triage
-                </button>
+                </Button>
               )}
 
-              <button
+              <Button
+                variant="outline"
+                size="md"
                 onClick={() => setStatusModalOpen(true)}
-                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors"
               >
                 Change Status
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="outline"
+                size="md"
                 onClick={() => setOverrideModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors"
+                icon={<Sliders className="w-4 h-4 text-slate-500" />}
               >
-                <Sliders className="w-3.5 h-3.5" />
                 Override Scores
-              </button>
+              </Button>
             </>
           )}
 
           {(isStaff || isAdmin) && complaint.analysisState === 'FAILED' && (
-            <button
+            <Button
+              variant="secondary"
+              size="md"
               onClick={handleRetryAnalysis}
-              disabled={retryingAnalysis}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              loading={retryingAnalysis}
+              icon={<RotateCw className="w-4 h-4" />}
             >
-              <RotateCw className={`w-3.5 h-3.5 ${retryingAnalysis ? 'animate-spin' : ''}`} />
               Retry Analysis
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Main Grid: Details (Left) + Scores & Metadata (Right) */}
+      {/* Main Grid: Description & Timeline (Left 2 cols) + Scoring & Routing (Right 1 col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2 Cols): Description, Resolution, Photos, Timeline */}
+        {/* Left Column (2 Cols) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Resolution Banner (If resolved) */}
+          {/* Resolution Banner (if resolved) */}
           {complaint.status === 'RESOLVED' && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
-              <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                Issue Resolved & Closed
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-950 font-bold text-base">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" aria-hidden="true" />
+                <span>Issue Resolved and Closed</span>
               </div>
-              <p className="text-xs text-emerald-800 leading-relaxed font-medium">
-                {complaint.resolutionNote || 'The responsible municipal department has addressed and closed this issue.'}
+              <p className="text-sm text-emerald-900 leading-relaxed font-medium">
+                {complaint.resolutionNote || 'The responsible municipal department has inspected, addressed, and closed this issue.'}
               </p>
               {complaint.resolvedAt && (
-                <div className="text-[11px] text-emerald-700 pt-1">
-                  Resolved on: {new Date(complaint.resolvedAt).toLocaleString()}
+                <div className="text-xs text-emerald-700 pt-1 font-medium">
+                  Official closure date: {new Date(complaint.resolvedAt).toLocaleString()}
                 </div>
               )}
             </div>
           )}
 
-          {/* Issue Description Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
+          {/* Description Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
               Citizen Report Details
             </h2>
 
-            <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
+            <p className="text-base text-slate-800 leading-relaxed whitespace-pre-line">
               {complaint.description}
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs border-t border-slate-100 text-slate-600">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-slate-800 block">Location:</span>
-                  <span>{complaint.address}</span>
-                  <span className="block text-slate-400 text-[11px] mt-0.5">
-                    {complaint.serviceArea.name} ({complaint.serviceArea.description})
-                  </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100 text-sm text-slate-600">
+              <div className="space-y-1">
+                <span className="font-semibold text-slate-800 block text-xs uppercase tracking-wider">
+                  Location & Area
+                </span>
+                <div className="text-slate-900 font-medium">{complaint.address}</div>
+                <div className="text-xs text-slate-500">
+                  Ward: {complaint.serviceArea.name} ({complaint.serviceArea.description})
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
-                <Calendar className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-slate-800 block">Submitted:</span>
-                  <span>{new Date(complaint.createdAt).toLocaleString()}</span>
-                  {complaint.firstNoticedDate && (
-                    <span className="block text-slate-400 text-[11px] mt-0.5">
-                      First noticed: {new Date(complaint.firstNoticedDate).toLocaleDateString()}
-                    </span>
-                  )}
+              <div className="space-y-1">
+                <span className="font-semibold text-slate-800 block text-xs uppercase tracking-wider">
+                  Submission Details
+                </span>
+                <div className="text-slate-900 font-medium">
+                  {new Date(complaint.createdAt).toLocaleString()}
                 </div>
+                {complaint.firstNoticedDate && (
+                  <div className="text-xs text-slate-500">
+                    Condition first observed: {new Date(complaint.firstNoticedDate).toLocaleDateString()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Photo Evidence */}
+          {/* Photo Attachments with Error Handling */}
           {complaint.attachments && complaint.attachments.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-3">
-              <h2 className="text-sm font-bold text-slate-900">
-                Photo Attachments ({complaint.attachments.length})
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+                  Photo Evidence ({complaint.attachments.length})
+                </h2>
+                <span className="text-xs text-slate-400">Private, authorized storage</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {complaint.attachments.map((att) => (
-                  <a
+                  <div
                     key={att.id}
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block relative rounded-xl overflow-hidden border border-slate-200 aspect-video group hover:shadow-md transition-all bg-slate-100"
+                    className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-video bg-slate-100 group shadow-2xs"
                   >
-                    <img src={att.url} alt={att.originalFilename} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/30 transition-all flex items-center justify-center">
-                      <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-semibold px-2 py-1 rounded bg-slate-900/70 flex items-center gap-1 transition-opacity">
-                        <Eye className="w-3.5 h-3.5" /> View
-                      </span>
-                    </div>
-                  </a>
+                    {failedImages[att.id] ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center text-slate-400 bg-slate-50">
+                        <ImageOff className="w-6 h-6 mb-1 text-slate-300" aria-hidden="true" />
+                        <span className="text-xs font-medium">Preview unavailable</span>
+                      </div>
+                    ) : (
+                      <>
+                        <img
+                          src={att.url}
+                          alt={att.originalFilename}
+                          onError={() => setFailedImages((prev) => ({ ...prev, [att.id]: true }))}
+                          className="w-full h-full object-cover"
+                        />
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/40 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-civic-500"
+                          aria-label={`View photo ${att.originalFilename}`}
+                        >
+                          <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900/80 flex items-center gap-1.5 transition-opacity">
+                            <Eye className="w-4 h-4" />
+                            <span>View Full Image</span>
+                          </span>
+                        </a>
+                      </>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Status & Progress Timeline */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-slate-900">
-              {isCitizen ? 'Progress Updates & Timeline' : 'Status History & Updates'}
+          {/* Status & Progress Updates Timeline */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
+              {isCitizen ? 'Progress Updates & Timeline' : 'Official Status Updates'}
             </h2>
 
             {complaint.statusHistory && complaint.statusHistory.length > 0 ? (
-              <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pl-5 py-1">
-                {complaint.statusHistory.map((item, idx) => (
-                  <div key={item.id} className="relative group">
+              <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pl-6 py-2">
+                {complaint.statusHistory.map((item) => (
+                  <div key={item.id} className="relative">
                     {/* Timeline bullet */}
-                    <div className="absolute -left-[27px] top-1 w-3.5 h-3.5 rounded-full bg-civic-600 ring-4 ring-white" />
-                    <div className="space-y-1">
+                    <div className="absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full bg-civic-600 ring-4 ring-white" />
+                    <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900 uppercase">
+                        <span className="text-sm font-bold text-slate-900">
                           {item.toStatus.replace('_', ' ')}
                         </span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-xs text-slate-400">
                           {new Date(item.createdAt).toLocaleString()}
                         </span>
                       </div>
                       {item.note && (
-                        <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
+                        <p className="text-sm text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-100 leading-relaxed">
                           {item.note}
                         </p>
                       )}
-                      {!isCitizen && (
-                        <div className="text-[10px] text-slate-400">
-                          Updated by: {item.changedByName}
+                      {!isCitizen && item.changedByName && (
+                        <div className="text-xs text-slate-400">
+                          Recorded by: <span className="font-medium text-slate-600">{item.changedByName}</span>
                         </div>
                       )}
                     </div>
@@ -341,30 +432,30 @@ export const ComplaintDetailPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 italic">No historical updates recorded.</p>
+              <p className="text-sm text-slate-500 italic">No progress updates recorded yet.</p>
             )}
           </div>
 
-          {/* Administrative Audit Timeline (Hidden from Citizens) */}
+          {/* Internal Audit Events (Restricted strictly to Staff & Administrators) */}
           {!isCitizen && complaint.auditEvents && complaint.auditEvents.length > 0 && (
-            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 shadow-sm space-y-3">
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
               <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
                 Internal Administrative Audit Trail
               </h2>
               <div className="divide-y divide-slate-200 text-xs">
                 {complaint.auditEvents.map((ae) => (
-                  <div key={ae.id} className="py-2.5 space-y-1">
+                  <div key={ae.id} className="py-3 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-800">{ae.action}</span>
-                      <span className="text-[11px] text-slate-400 font-mono">
+                      <span className="font-semibold text-slate-900">{ae.action}</span>
+                      <span className="text-slate-400 font-mono">
                         {new Date(ae.createdAt).toLocaleString()}
                       </span>
                     </div>
                     <div className="text-slate-600">
-                      Actor: <b>{ae.actorName}</b>
+                      Actor: <span className="font-semibold text-slate-800">{ae.actorName}</span>
                     </div>
                     {ae.details && (
-                      <pre className="text-[11px] bg-white p-2 rounded border border-slate-200 overflow-x-auto text-slate-700">
+                      <pre className="text-xs bg-white p-2.5 rounded-xl border border-slate-200 overflow-x-auto text-slate-700 font-mono">
                         {JSON.stringify(ae.details, null, 2)}
                       </pre>
                     )}
@@ -375,59 +466,61 @@ export const ComplaintDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column (1 Col): Impact Scores, Department Card, AI Metadata */}
+        {/* Right Column (1 Col): Routing & Score Card */}
         <div className="space-y-6">
           {/* Department Assignment Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
               Department Routing
             </span>
 
             {complaint.department ? (
-              <div className="space-y-1">
-                <div className="font-bold text-base text-slate-900 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-civic-600" />
-                  {complaint.department.name}
+              <div className="space-y-1.5">
+                <div className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-civic-600" aria-hidden="true" />
+                  <span>{complaint.department.name}</span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed">
                   {complaint.department.description}
                 </p>
               </div>
             ) : (
-              <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-xs text-purple-900 space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <AlertCircle className="w-4 h-4 text-purple-600" />
-                  Manual Review Required
+              <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 text-xs text-purple-900 space-y-1">
+                <div className="font-bold text-sm flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-purple-600" aria-hidden="true" />
+                  <span>Manual Review Required</span>
                 </div>
-                <p className="text-[11px] text-purple-800">
-                  This complaint requires administrator triage before official department assignment.
+                <p className="text-purple-800 leading-relaxed">
+                  This report is in the administrative review queue awaiting verified departmental routing.
                 </p>
               </div>
             )}
 
-            <div className="pt-2 border-t border-slate-100 text-xs text-slate-600 space-y-1">
+            <div className="pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1.5">
               <div>
-                <b>Category:</b> {complaint.category?.name || 'Uncertain / Other'}
+                <span className="font-semibold text-slate-700">Category:</span>{' '}
+                {complaint.category?.name || 'Unassigned / Triage'}
               </div>
               <div>
-                <b>Ward:</b> {complaint.serviceArea.name}
+                <span className="font-semibold text-slate-700">Service Ward:</span>{' '}
+                {complaint.serviceArea.name}
               </div>
             </div>
           </div>
 
-          {/* Core Score & Stars Breakdown */}
+          {/* Core Impact Score Breakdown */}
           <ScoreCard scores={complaint.scores} showBreakdown={true} />
 
-          {/* AI Triage & Analysis Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3 text-xs">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
-              Automated Analysis Metadata
+          {/* AI / Rule-based Triage Analysis Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-3.5 text-xs">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+              Automated Triage Analysis
             </span>
 
             <div className="space-y-2 text-slate-700">
               <div className="flex items-center justify-between">
-                <span>Provider Engine:</span>
-                <span className="font-semibold capitalize px-2 py-0.5 rounded bg-slate-100 text-slate-800">
+                <span>Classification Engine:</span>
+                <span className="font-semibold capitalize px-2 py-0.5 rounded-md bg-slate-100 text-slate-800">
                   {complaint.analysisProvider?.replace(/_/g, ' ') || 'Pending'}
                 </span>
               </div>
@@ -442,25 +535,26 @@ export const ComplaintDetailPage: React.FC = () => {
               )}
 
               {complaint.aiRationale && (
-                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-slate-600 text-[11px] leading-relaxed">
-                  <b>Assessment Rationale:</b> {complaint.aiRationale}
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600 text-xs leading-relaxed">
+                  <span className="font-bold text-slate-800 block mb-1">Assessment Rationale:</span>
+                  {complaint.aiRationale}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Human Score Overrides Notice (if any) */}
+          {/* Administrative Score Overrides Notice (if any) */}
           {complaint.scores.hasOverrides && (
             <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4 text-xs text-amber-900 space-y-1">
               <div className="font-bold flex items-center gap-1.5">
-                <Sliders className="w-3.5 h-3.5 text-amber-700" />
-                Administrative Score Overrides Applied
+                <Sliders className="w-4 h-4 text-amber-700" aria-hidden="true" />
+                <span>Administrative Overrides Applied</span>
               </div>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                Reason: "{complaint.overrideReason}"
+              <p className="text-amber-800 leading-relaxed">
+                Justification: "{complaint.overrideReason}"
               </p>
               {complaint.overriddenByName && (
-                <div className="text-[10px] text-amber-700">
+                <div className="text-[11px] text-amber-700 font-medium">
                   By {complaint.overriddenByName} on {new Date(complaint.overriddenAt!).toLocaleDateString()}
                 </div>
               )}
@@ -469,7 +563,7 @@ export const ComplaintDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Action Modals */}
+      {/* Modals */}
       <StatusUpdateModal
         isOpen={statusModalOpen}
         onClose={() => setStatusModalOpen(false)}

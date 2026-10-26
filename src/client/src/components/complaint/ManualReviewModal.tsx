@@ -3,11 +3,13 @@ import { Modal } from '../common/Modal';
 import { ComplaintItem, CategorySummary, DepartmentSummary } from '../../../../shared/types';
 import { api } from '../../services/api';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { FormLabel, FormHelp } from '../common/FormField';
+import { Button } from '../common/Button';
 
 interface ManualReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  complaint: ComplaintItem;
+  complaint: ComplaintItem | null;
   onDecision: (categoryId: string, departmentId: string, notes: string) => Promise<void>;
 }
 
@@ -17,6 +19,8 @@ export const ManualReviewModal: React.FC<ManualReviewModalProps> = ({
   complaint,
   onDecision,
 }) => {
+  if (!complaint || !isOpen) return null;
+
   const [categories, setCategories] = useState<CategorySummary[]>([]);
   const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
   const [selectedCategory, setSelectedCategory] = useState(complaint.categoryId || '');
@@ -66,28 +70,29 @@ export const ManualReviewModal: React.FC<ManualReviewModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-800">
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs sm:text-sm text-red-800" role="alert">
             {error}
           </div>
         )}
 
-        <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1">
-          <div className="font-semibold text-slate-800">{complaint.title}</div>
-          <div className="text-slate-600 line-clamp-2">{complaint.description}</div>
-          <div className="text-slate-500 font-mono text-[11px] pt-1">
-            Service Area: {complaint.serviceArea.name} &bull; Address: {complaint.address}
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm space-y-1">
+          <div className="font-bold text-slate-900">{complaint.title}</div>
+          <div className="text-slate-600 line-clamp-2 text-xs">{complaint.description}</div>
+          <div className="text-slate-500 font-mono text-xs pt-1">
+            Ward: {complaint.serviceArea.name} &bull; Address: {complaint.address}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Select Correct Category
-            </label>
+            <FormLabel htmlFor="review-category" required>
+              Select Verified Category
+            </FormLabel>
             <select
+              id="review-category"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full text-xs rounded-lg border border-slate-300 p-2.5 bg-white focus:border-civic-500 focus:ring-1 focus:ring-civic-500"
+              className="w-full text-sm rounded-xl border border-slate-300 p-2.5 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-civic-100 focus:border-civic-500"
             >
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -98,13 +103,14 @@ export const ManualReviewModal: React.FC<ManualReviewModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <FormLabel htmlFor="review-dept" required>
               Assign Responsible Department
-            </label>
+            </FormLabel>
             <select
+              id="review-dept"
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="w-full text-xs rounded-lg border border-slate-300 p-2.5 bg-white focus:border-civic-500 focus:ring-1 focus:ring-civic-500"
+              className="w-full text-sm rounded-xl border border-slate-300 p-2.5 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-civic-100 focus:border-civic-500"
             >
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -116,35 +122,34 @@ export const ManualReviewModal: React.FC<ManualReviewModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Administrative Rationale / Triage Note <span className="text-red-500">*</span>
-          </label>
+          <FormLabel htmlFor="review-notes" required>
+            Triage Justification Reason
+          </FormLabel>
           <textarea
+            id="review-notes"
             required
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Document reasons for department routing decision (recorded permanently in audit history)..."
-            className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:border-civic-500 focus:ring-1 focus:ring-civic-500"
+            placeholder="Document reasons for department routing decision (permanently preserved in audit log)..."
+            className="w-full text-sm rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-civic-100 focus:border-civic-500"
           />
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
-          >
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <Button variant="secondary" size="md" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            disabled={loading}
-            className="px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-sm disabled:opacity-50 transition-colors flex items-center gap-1.5"
+            variant="primary"
+            size="md"
+            loading={loading}
+            className="bg-purple-600 hover:bg-purple-700"
+            icon={<CheckCircle2 className="w-4 h-4" />}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            {loading ? 'Approving...' : 'Approve & Assign Complaint'}
-          </button>
+            Approve & Assign Complaint
+          </Button>
         </div>
       </form>
     </Modal>

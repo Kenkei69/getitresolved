@@ -3,11 +3,13 @@ import { Modal } from '../common/Modal';
 import { ComplaintItem, ComplaintStatus } from '../../../../shared/types';
 import { STATUS_TRANSITIONS } from '../../../../shared/constants';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { FormLabel, FormHelp } from '../common/FormField';
+import { Button } from '../common/Button';
 
 interface StatusUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  complaint: ComplaintItem;
+  complaint: ComplaintItem | null;
   onUpdate: (toStatus: ComplaintStatus, note: string, isCitizenVisible: boolean, explanation?: string) => Promise<void>;
   userRole?: string;
 }
@@ -19,6 +21,8 @@ export const StatusUpdateModal: React.FC<StatusUpdateModalProps> = ({
   onUpdate,
   userRole,
 }) => {
+  if (!complaint || !isOpen) return null;
+
   const allowedTransitions = STATUS_TRANSITIONS[complaint.status] || [];
 
   // Filter out reopening if not admin
@@ -77,30 +81,28 @@ export const StatusUpdateModal: React.FC<StatusUpdateModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Update Complaint Status"
-      description={`Reference: ${complaint.reference} — Current: ${complaint.status}`}
+      description={`Reference: ${complaint.reference} — Current status: ${complaint.status}`}
       maxWidth="md"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-800 flex items-start gap-2">
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs sm:text-sm text-red-800 flex items-start gap-2.5" role="alert">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-            Target Status
-          </label>
-          <div className="grid grid-cols-2 gap-2">
+          <FormLabel required>Select Target Status</FormLabel>
+          <div className="grid grid-cols-2 gap-2 mt-1">
             {availableStatuses.map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => setToStatus(s)}
-                className={`py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all ${
+                className={`py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl border text-center transition-all min-h-[42px] ${
                   toStatus === s
-                    ? 'border-civic-600 bg-civic-50 text-civic-800 ring-2 ring-civic-500/20'
+                    ? 'border-civic-600 bg-civic-50 text-civic-900 ring-2 ring-civic-500/20'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                 }`}
               >
@@ -113,61 +115,60 @@ export const StatusUpdateModal: React.FC<StatusUpdateModalProps> = ({
         {/* Resolution note */}
         {isResolving && (
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Resolution Note <span className="text-red-500">*</span>
-              <span className="text-[11px] font-normal text-slate-500 block">
-                This note will be visible to the citizen and recorded in the audit history.
-              </span>
-            </label>
+            <FormLabel htmlFor="resolution-note" required>
+              Citizen Resolution Note
+            </FormLabel>
             <textarea
+              id="resolution-note"
               required
               rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Describe the completed work (e.g., Replaced 6-inch water clamp, patched 2x2 asphalt section)..."
-              className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:border-civic-500 focus:ring-1 focus:ring-civic-500"
+              className="w-full text-sm rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-civic-100 focus:border-civic-500"
             />
+            <FormHelp>This note will be visible to the citizen and recorded in the permanent audit history.</FormHelp>
           </div>
         )}
 
         {/* Explanation for Reopening or Reverting */}
         {(isReopening || isReverting) && (
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Required Explanation <span className="text-red-500">*</span>
-              <span className="text-[11px] font-normal text-slate-500 block">
-                Explain why this complaint is being returned to Assigned status.
-              </span>
-            </label>
+            <FormLabel htmlFor="revert-explanation" required>
+              Administrative Justification Reason
+            </FormLabel>
             <textarea
+              id="revert-explanation"
               required
               rows={3}
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
-              placeholder="State clear operational reason..."
-              className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:border-civic-500 focus:ring-1 focus:ring-civic-500"
+              placeholder="State clear operational reason for reversing status..."
+              className="w-full text-sm rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-civic-100 focus:border-civic-500"
             />
+            <FormHelp>Explain why this complaint is being returned to Assigned status.</FormHelp>
           </div>
         )}
 
         {/* Standard progress note */}
         {!isResolving && !isReopening && !isReverting && (
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <FormLabel htmlFor="progress-note">
               Progress Note (Optional)
-            </label>
+            </FormLabel>
             <textarea
+              id="progress-note"
               rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g., Work crew dispatched; parts on order..."
-              className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:border-civic-500 focus:ring-1 focus:ring-civic-500"
+              className="w-full text-sm rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-civic-100 focus:border-civic-500"
             />
           </div>
         )}
 
         {/* Citizen visibility toggle */}
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex items-center gap-2.5 pt-1">
           <input
             type="checkbox"
             id="isCitizenVisible"
@@ -175,26 +176,18 @@ export const StatusUpdateModal: React.FC<StatusUpdateModalProps> = ({
             onChange={(e) => setIsCitizenVisible(e.target.checked)}
             className="rounded border-slate-300 text-civic-600 focus:ring-civic-500 h-4 w-4"
           />
-          <label htmlFor="isCitizenVisible" className="text-xs text-slate-700 select-none cursor-pointer">
-            Make this progress update visible on the citizen tracking timeline
+          <label htmlFor="isCitizenVisible" className="text-xs sm:text-sm text-slate-700 select-none cursor-pointer">
+            Make this update visible on the citizen tracking timeline
           </label>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
-          >
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <Button variant="secondary" size="md" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-1.5 text-xs font-semibold text-white bg-civic-600 hover:bg-civic-700 rounded-lg shadow-sm disabled:opacity-50 transition-colors flex items-center gap-1.5"
-          >
-            {loading ? 'Updating...' : 'Confirm Status Change'}
-          </button>
+          </Button>
+          <Button variant="primary" size="md" type="submit" loading={loading}>
+            Confirm Status Change
+          </Button>
         </div>
       </form>
     </Modal>

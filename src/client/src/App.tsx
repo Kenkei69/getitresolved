@@ -25,8 +25,9 @@ const ProtectedRoute: React.FC<{
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-400">
-        Authenticating session...
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-slate-500 text-sm">
+        <div className="w-8 h-8 rounded-full border-2 border-civic-600 border-t-transparent animate-spin" />
+        <span>Authenticating session...</span>
       </div>
     );
   }
@@ -48,8 +49,11 @@ const ProtectedRoute: React.FC<{
 export const AppContent: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900">
+      <a href="#main-content" className="skip-to-content">
+        Skip to main content
+      </a>
       <Navbar />
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
@@ -142,14 +146,20 @@ export const AppContent: React.FC = () => {
         </Routes>
       </main>
 
-      {/* Municipal Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 space-y-2">
-          <div className="font-semibold text-slate-700">
-            Getitresolved &bull; Municipal Citizen Complaint Management System
+      {/* Municipal Civic Service Footer */}
+      <footer className="bg-white border-t border-slate-200 py-8 mt-16 text-center text-sm text-slate-500">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-slate-600 font-medium">
+            <span>Getitresolved</span>
+            <span>&bull;</span>
+            <span>Municipal Citizen Service Portal</span>
+            <span>&bull;</span>
+            <a href="/scoring-guide" className="hover:text-civic-700 hover:underline">
+              Scoring Methodology
+            </a>
           </div>
-          <p className="text-[11px] text-slate-400 max-w-xl mx-auto">
-            Demonstration civic infrastructure system featuring AI classification, deterministic department routing, and multi-factor impact scoring.
+          <p className="text-xs text-slate-400 max-w-xl mx-auto leading-relaxed">
+            Transparent municipal issue resolution featuring automated triage, deterministic department routing, and multi-factor impact prioritization.
           </p>
         </div>
       </footer>
