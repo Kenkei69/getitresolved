@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { chromium, Browser, Page } from 'playwright-core';
 import http from 'http';
 import fs from 'fs';

@@ -206,3 +206,30 @@ model AuditEvent {
   @@index([actorId])
   @@index([createdAt])
 }
+
+model RateLimitRecord {
+  key       String   @id
+  points    Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model UploadGrant {
+  id         String   @id @default(cuid())
+  userId     String
+  pathname   String
+  storageUrl String?
+  fileSize   Int?
+  mimeType   String?
+  used       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([userId])
+  @@index([pathname])
+  @@index([storageUrl])
+  @@index([expiresAt])
+}

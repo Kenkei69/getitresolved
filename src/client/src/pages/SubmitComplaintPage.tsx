@@ -567,11 +567,16 @@ export const SubmitComplaintPage: React.FC = () => {
             type="submit"
             variant="primary"
             size="lg"
+            disabled={submitting || attachments.some((a) => a.status === 'uploading')}
             loading={submitting}
             icon={<ArrowRight className="w-4 h-4" />}
             iconPosition="right"
           >
-            {submitting ? 'Submitting & Triaging...' : 'Submit Report'}
+            {submitting
+              ? 'Submitting & Triaging...'
+              : attachments.some((a) => a.status === 'uploading')
+              ? 'Uploading Photos...'
+              : 'Submit Report'}
           </Button>
         </div>
       </form>

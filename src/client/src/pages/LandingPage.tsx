@@ -255,17 +255,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <h3 className="font-bold text-slate-900 text-base">Roads & Sidewalks</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Potholes, pavement fractures, broken curbs, and dangerous sidewalk obstructions.
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center border border-cyan-100">
-              <Droplets className="w-5 h-5" aria-hidden="true" />
-            </div>
-            <h3 className="font-bold text-slate-900 text-base">Water & Drainage</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Main pipe bursts, low water pressure, storm drain clogs, and sewage overflows.
+              Potholes, pavement fractures, broken curbs, and roadway hazards.
             </p>
           </div>
 
@@ -273,9 +263,29 @@ export const LandingPage: React.FC = () => {
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-100">
               <Lightbulb className="w-5 h-5" aria-hidden="true" />
             </div>
-            <h3 className="font-bold text-slate-900 text-base">Streetlights & Power</h3>
+            <h3 className="font-bold text-slate-900 text-base">Electrical & Streetlights</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Dark intersections, damaged poles, exposed electrical wiring, and malfunctioning signals.
+              Dark pedestrian crossings, streetlight outages, and malfunctioning signals.
+            </p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center border border-cyan-100">
+              <Droplets className="w-5 h-5" aria-hidden="true" />
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">Water Supply</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Water main leaks, low distribution pressure, and leaking municipal valves.
+            </p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+              <Route className="w-5 h-5" aria-hidden="true" />
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">Drainage & Sewage</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Blocked storm drains, street flooding, catch basin clogs, and sewage backups.
             </p>
           </div>
 
@@ -285,17 +295,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <h3 className="font-bold text-slate-900 text-base">Sanitation & Waste</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Missed collection routes, illegal dumping, overflowing public bins, and hazardous debris.
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-            <div className="w-10 h-10 rounded-xl bg-green-50 text-green-700 flex items-center justify-center border border-green-100">
-              <Trees className="w-5 h-5" aria-hidden="true" />
-            </div>
-            <h3 className="font-bold text-slate-900 text-base">Parks & Grounds</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Fallen tree branches, damaged playground equipment, overgrown public medians.
+              Missed pickup routes, illegal dumping, overflowing bins, and public debris.
             </p>
           </div>
         </div>

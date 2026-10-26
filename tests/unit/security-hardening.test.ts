@@ -143,4 +143,107 @@ describe('Production Security & Storage Hardening', () => {
       process.env.APP_ORIGIN = originalOrigin;
     }
   });
+
+  it('fails clearly in production when JWT_SECRET is missing or insecure', () => {
+    const originalEnv = process.env.NODE_ENV;
+    const originalSecret = process.env.JWT_SECRET;
+
+    try {
+      process.env.NODE_ENV = 'production';
+      delete process.env.JWT_SECRET;
+
+      const { assertAuthConfigured } = require('../../src/server/middleware/auth');
+      assert.throws(
+        () => {
+          assertAuthConfigured();
+        },
+        /CRITICAL AUTH ERROR: A secure, strong JWT_SECRET/i
+      );
+    } finally {
+      process.env.NODE_ENV = originalEnv;
+      if (originalSecret) {
+        process.env.JWT_SECRET = originalSecret;
+      }
+    }
+  });
+
+  it('enforces staff department isolation on retry-analysis endpoint', async () => {
+    // 1. Log in as Electrical staff
+    const staffLogin = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'staff.electrical@civicresolve.gov',
+        password: 'Staff123!',
+      });
+    assert.strictEqual(staffLogin.status, 200);
+    const staffCookie = staffLogin.headers['set-cookie'];
+
+    // 2. Find a Roads complaint (assigned to Roads, not Electrical)
+    const roadsComplaint = await prisma.complaint.findFirst({
+      where: { department: { code: 'ROADS' } },
+    });
+    assert.ok(roadsComplaint, 'Roads complaint must exist in database');
+
+    // 3. Electrical staff attempts to trigger retry-analysis on Roads complaint
+    const forbiddenRes = await request(app)
+      .post(`/api/complaints/${roadsComplaint.id}/retry-analysis`)
+      .set('Cookie', staffCookie);
+
+    assert.strictEqual(forbiddenRes.status, 403);
+    assert.match(forbiddenRes.body.error, /Access denied: You can only retry analysis for complaints assigned to your department/i);
+  });
+
+  it('enforces CSRF defense against unauthorized cross-site mutations', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'citizen.jane@example.com',
+        password: 'Citizen123!',
+      });
+    const sessionCookie = loginRes.headers['set-cookie'];
+
+    // Cross-site fetch metadata attempt with session cookie must be blocked with 403
+    const crossSiteRes = await request(app)
+      .post('/api/complaints')
+      .set('Cookie', sessionCookie)
+      .set('Origin', 'http://localhost:5000')
+      .set('Sec-Fetch-Site', 'cross-site')
+      .send({ title: 'Hacked Pothole', description: 'Cross site request forgery attempt' });
+
+    assert.strictEqual(crossSiteRes.status, 403);
+    assert.match(crossSiteRes.body.error, /Cross-site request blocked/i);
+
+    // Browser request with missing CSRF token header must be blocked with 403
+    const missingTokenRes = await request(app)
+      .post('/api/complaints')
+      .set('Cookie', sessionCookie)
+      .set('Origin', 'http://localhost:5000')
+      .set('Sec-Fetch-Mode', 'cors')
+      .send({ title: 'Hacked Pothole', description: 'Cross site request forgery attempt' });
+
+    assert.strictEqual(missingTokenRes.status, 403);
+    assert.match(missingTokenRes.body.error, /Missing CSRF token header/i);
+  });
+
+  it('enforces rate limiting abuse protection when threshold is exceeded', async () => {
+    const { consumeRateLimit } = require('../../src/server/services/rateLimit');
+    const testKey = `test:ip:abuse-${Date.now()}`;
+    const maxPoints = 3;
+    const windowSeconds = 60;
+
+    const r1 = await consumeRateLimit(testKey, maxPoints, windowSeconds);
+    assert.strictEqual(r1.allowed, true);
+
+    const r2 = await consumeRateLimit(testKey, maxPoints, windowSeconds);
+    assert.strictEqual(r2.allowed, true);
+
+    const r3 = await consumeRateLimit(testKey, maxPoints, windowSeconds);
+    assert.strictEqual(r3.allowed, true);
+
+    // 4th call exceeds maxPoints (3)
+    const r4 = await consumeRateLimit(testKey, maxPoints, windowSeconds);
+    assert.strictEqual(r4.allowed, false);
+    assert.strictEqual(r4.remaining, 0);
+    assert.ok(r4.retryAfterSeconds > 0);
+  });
 });

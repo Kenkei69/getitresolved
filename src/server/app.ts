@@ -23,12 +23,41 @@ import complaintsRoutes from './routes/complaints';
 import adminRoutes from './routes/admin';
 import statsRoutes from './routes/stats';
 import { isBlobStorageConfigured } from './services/storage';
+import { assertAuthConfigured } from './middleware/auth';
+import { csrfProtection } from './middleware/csrf';
 
 export function createApp() {
   const app = express();
 
   // Trust proxy for Vercel, Docker, reverse proxies
   app.set('trust proxy', 1);
+
+  // Security Headers Middleware
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Content Security Policy
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com data:; " +
+      "img-src 'self' data: blob: https://*.blob.vercel-storage.com; " +
+      "connect-src 'self' https://*.blob.vercel-storage.com; " +
+      "frame-ancestors 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self';"
+    );
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+    if (process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+
+    next();
+  });
 
   // Dynamic CORS restricted strictly to explicitly configured application origins
   const additionalOrigins = process.env.ADDITIONAL_ALLOWED_ORIGINS
@@ -68,6 +97,7 @@ export function createApp() {
     })
   );
   app.use(cookieParser());
+  app.use(csrfProtection);
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -99,9 +129,23 @@ export function createApp() {
         return;
       }
 
+      try {
+        assertAuthConfigured();
+      } catch (authErr: any) {
+        res.status(503).json({
+          status: 'not_ready',
+          database: 'connected',
+          auth: 'insecure_or_missing_secret',
+          error: authErr.message || 'Authentication misconfiguration in production.',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
       res.json({
         status: 'ready',
         database: 'connected',
+        auth: 'configured',
         storage: isBlobStorageConfigured() ? 'durable_private_blob' : 'local_disk',
         timestamp: new Date().toISOString(),
       });

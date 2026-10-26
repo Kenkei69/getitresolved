@@ -288,10 +288,10 @@ export const ComplaintTable: React.FC<ComplaintTableProps> = ({
             type="button"
             disabled={pagination.page <= 1}
             onClick={() => onPageChange(pagination.page - 1)}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center"
+            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-500"
             aria-label="Previous page"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5 text-slate-700" />
           </button>
           <span className="font-semibold text-slate-800 text-xs sm:text-sm px-2">
             Page {pagination.page} of {pagination.totalPages || 1}
@@ -300,10 +300,10 @@ export const ComplaintTable: React.FC<ComplaintTableProps> = ({
             type="button"
             disabled={pagination.page >= pagination.totalPages}
             onClick={() => onPageChange(pagination.page + 1)}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center"
+            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-500"
             aria-label="Next page"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-5 h-5 text-slate-700" />
           </button>
         </div>
       </div>
