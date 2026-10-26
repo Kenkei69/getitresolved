@@ -5,9 +5,6 @@
   "functions": {
     "api/**/*.js": {
       "includeFiles": "node_modules/.prisma/client/**"
-    },
-    "api/**/*.ts": {
-      "includeFiles": "node_modules/.prisma/client/**"
     }
   },
   "rewrites": [

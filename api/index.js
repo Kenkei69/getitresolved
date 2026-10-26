@@ -5,14 +5,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __esm = (fn, res, err) => function __init() {
-  if (err) throw err[0];
-  try {
-    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-  } catch (e) {
-    throw err = [e], e;
-  }
-};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -35,86 +27,106 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// src/server/vercel-handler.ts
+var vercel_handler_exports = {};
+__export(vercel_handler_exports, {
+  default: () => handler
+});
+module.exports = __toCommonJS(vercel_handler_exports);
+
+// src/server/app.ts
+var import_express6 = __toESM(require("express"));
+var import_cors = __toESM(require("cors"));
+var import_cookie_parser = __toESM(require("cookie-parser"));
+var import_path3 = __toESM(require("path"));
+var import_fs4 = __toESM(require("fs"));
+var import_crypto4 = __toESM(require("crypto"));
+var import_client2 = require("@prisma/client");
+
+// src/server/routes/auth.ts
+var import_express = require("express");
+var import_bcryptjs = __toESM(require("bcryptjs"));
+
 // src/shared/schemas.ts
-var import_zod, RegisterSchema, LoginSchema, ComplaintCreateSchema, StatusUpdateSchema, FlagForReviewSchema, ManualReviewDecisionSchema, ScoreOverrideSchema, StaffDepartmentAssignSchema, ComplaintFilterSchema;
-var init_schemas = __esm({
-  "src/shared/schemas.ts"() {
-    "use strict";
-    import_zod = require("zod");
-    RegisterSchema = import_zod.z.object({
-      name: import_zod.z.string().trim().min(2, "Name must be at least 2 characters").max(80, "Name cannot exceed 80 characters"),
-      email: import_zod.z.string().trim().email("Please enter a valid email address").toLowerCase(),
-      password: import_zod.z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long")
-    });
-    LoginSchema = import_zod.z.object({
-      email: import_zod.z.string().trim().email("Please enter a valid email address").toLowerCase(),
-      password: import_zod.z.string().min(1, "Password is required")
-    });
-    ComplaintCreateSchema = import_zod.z.object({
-      title: import_zod.z.string().trim().min(5, "Title must be at least 5 characters").max(120, "Title cannot exceed 120 characters"),
-      description: import_zod.z.string().trim().min(15, "Please provide more details (at least 15 characters)").max(3e3, "Description cannot exceed 3000 characters"),
-      address: import_zod.z.string().trim().min(5, "Please provide a specific street address or landmark (at least 5 characters)").max(200, "Address cannot exceed 200 characters"),
-      serviceAreaId: import_zod.z.string().min(1, "Please select a valid service area"),
-      firstNoticedDate: import_zod.z.string().optional().nullable()
-    });
-    StatusUpdateSchema = import_zod.z.object({
-      toStatus: import_zod.z.enum(["SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED"]),
-      note: import_zod.z.string().trim().max(1e3, "Note cannot exceed 1000 characters").optional().nullable(),
-      isCitizenVisible: import_zod.z.boolean().default(true),
-      explanation: import_zod.z.string().trim().max(1e3).optional()
-    }).refine((data) => {
-      if (data.toStatus === "RESOLVED") {
-        return !!data.note && data.note.trim().length >= 5;
-      }
-      return true;
-    }, {
-      message: "A detailed resolution note (at least 5 characters) is required before resolving a complaint",
-      path: ["note"]
-    });
-    FlagForReviewSchema = import_zod.z.object({
-      reason: import_zod.z.string().trim().min(10, "Please provide an explanation (at least 10 characters) for flagging this complaint").max(1e3)
-    });
-    ManualReviewDecisionSchema = import_zod.z.object({
-      categoryId: import_zod.z.string().min(1, "Please select a valid category"),
-      departmentId: import_zod.z.string().min(1, "Please select a valid department"),
-      reviewDecision: import_zod.z.enum(["APPROVED", "REJECTED"]).default("APPROVED"),
-      notes: import_zod.z.string().trim().min(5, "Please provide an administrative review rationale").max(1e3)
-    });
-    ScoreOverrideSchema = import_zod.z.object({
-      priority: import_zod.z.number().min(0).max(10).optional().nullable(),
-      urgency: import_zod.z.number().min(0).max(10).optional().nullable(),
-      feasibility: import_zod.z.number().min(0).max(10).optional().nullable(),
-      reason: import_zod.z.string().trim().min(10, "A reason for overriding automated scores is required (at least 10 characters)").max(500)
-    });
-    StaffDepartmentAssignSchema = import_zod.z.object({
-      userId: import_zod.z.string().min(1, "User ID is required"),
-      departmentId: import_zod.z.string().nullable()
-    });
-    ComplaintFilterSchema = import_zod.z.object({
-      search: import_zod.z.string().optional(),
-      categoryId: import_zod.z.string().optional(),
-      departmentId: import_zod.z.string().optional(),
-      serviceAreaId: import_zod.z.string().optional(),
-      status: import_zod.z.enum(["SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "ACTIVE", "ALL"]).optional(),
-      reviewState: import_zod.z.enum(["NOT_REQUIRED", "REQUIRED", "APPROVED", "ALL"]).optional(),
-      minCoreScore: import_zod.z.coerce.number().min(0).max(10).optional(),
-      dateFrom: import_zod.z.string().optional(),
-      dateTo: import_zod.z.string().optional(),
-      // Colored stars (AND condition)
-      starRed: import_zod.z.enum(["true", "false"]).optional(),
-      starPink: import_zod.z.enum(["true", "false"]).optional(),
-      starOrange: import_zod.z.enum(["true", "false"]).optional(),
-      starGreen: import_zod.z.enum(["true", "false"]).optional(),
-      // Sorting
-      sortBy: import_zod.z.enum(["coreScore", "urgency", "priority", "duration", "feasibility", "newest", "oldest"]).default("coreScore"),
-      sortOrder: import_zod.z.enum(["asc", "desc"]).default("desc"),
-      page: import_zod.z.coerce.number().int().min(1).default(1),
-      limit: import_zod.z.coerce.number().int().min(1).max(100).default(15)
-    });
+var import_zod = require("zod");
+var RegisterSchema = import_zod.z.object({
+  name: import_zod.z.string().trim().min(2, "Name must be at least 2 characters").max(80, "Name cannot exceed 80 characters"),
+  email: import_zod.z.string().trim().email("Please enter a valid email address").toLowerCase(),
+  password: import_zod.z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long")
+});
+var LoginSchema = import_zod.z.object({
+  email: import_zod.z.string().trim().email("Please enter a valid email address").toLowerCase(),
+  password: import_zod.z.string().min(1, "Password is required")
+});
+var ComplaintCreateSchema = import_zod.z.object({
+  title: import_zod.z.string().trim().min(5, "Title must be at least 5 characters").max(120, "Title cannot exceed 120 characters"),
+  description: import_zod.z.string().trim().min(15, "Please provide more details (at least 15 characters)").max(3e3, "Description cannot exceed 3000 characters"),
+  address: import_zod.z.string().trim().min(5, "Please provide a specific street address or landmark (at least 5 characters)").max(200, "Address cannot exceed 200 characters"),
+  serviceAreaId: import_zod.z.string().min(1, "Please select a valid service area"),
+  firstNoticedDate: import_zod.z.string().optional().nullable()
+});
+var StatusUpdateSchema = import_zod.z.object({
+  toStatus: import_zod.z.enum(["SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED"]),
+  note: import_zod.z.string().trim().max(1e3, "Note cannot exceed 1000 characters").optional().nullable(),
+  isCitizenVisible: import_zod.z.boolean().default(true),
+  explanation: import_zod.z.string().trim().max(1e3).optional()
+}).refine((data) => {
+  if (data.toStatus === "RESOLVED") {
+    return !!data.note && data.note.trim().length >= 5;
   }
+  return true;
+}, {
+  message: "A detailed resolution note (at least 5 characters) is required before resolving a complaint",
+  path: ["note"]
+});
+var FlagForReviewSchema = import_zod.z.object({
+  reason: import_zod.z.string().trim().min(10, "Please provide an explanation (at least 10 characters) for flagging this complaint").max(1e3)
+});
+var ManualReviewDecisionSchema = import_zod.z.object({
+  categoryId: import_zod.z.string().min(1, "Please select a valid category"),
+  departmentId: import_zod.z.string().min(1, "Please select a valid department"),
+  reviewDecision: import_zod.z.enum(["APPROVED", "REJECTED"]).default("APPROVED"),
+  notes: import_zod.z.string().trim().min(5, "Please provide an administrative review rationale").max(1e3)
+});
+var ScoreOverrideSchema = import_zod.z.object({
+  priority: import_zod.z.number().min(0).max(10).optional().nullable(),
+  urgency: import_zod.z.number().min(0).max(10).optional().nullable(),
+  feasibility: import_zod.z.number().min(0).max(10).optional().nullable(),
+  reason: import_zod.z.string().trim().min(10, "A reason for overriding automated scores is required (at least 10 characters)").max(500)
+});
+var StaffDepartmentAssignSchema = import_zod.z.object({
+  userId: import_zod.z.string().min(1, "User ID is required"),
+  departmentId: import_zod.z.string().nullable()
+});
+var ComplaintFilterSchema = import_zod.z.object({
+  search: import_zod.z.string().optional(),
+  categoryId: import_zod.z.string().optional(),
+  departmentId: import_zod.z.string().optional(),
+  serviceAreaId: import_zod.z.string().optional(),
+  status: import_zod.z.enum(["SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "ACTIVE", "ALL"]).optional(),
+  reviewState: import_zod.z.enum(["NOT_REQUIRED", "REQUIRED", "APPROVED", "ALL"]).optional(),
+  minCoreScore: import_zod.z.coerce.number().min(0).max(10).optional(),
+  dateFrom: import_zod.z.string().optional(),
+  dateTo: import_zod.z.string().optional(),
+  // Colored stars (AND condition)
+  starRed: import_zod.z.enum(["true", "false"]).optional(),
+  starPink: import_zod.z.enum(["true", "false"]).optional(),
+  starOrange: import_zod.z.enum(["true", "false"]).optional(),
+  starGreen: import_zod.z.enum(["true", "false"]).optional(),
+  // Sorting
+  sortBy: import_zod.z.enum(["coreScore", "urgency", "priority", "duration", "feasibility", "newest", "oldest"]).default("coreScore"),
+  sortOrder: import_zod.z.enum(["asc", "desc"]).default("desc"),
+  page: import_zod.z.coerce.number().int().min(1).default(1),
+  limit: import_zod.z.coerce.number().int().min(1).max(100).default(15)
 });
 
+// src/server/middleware/auth.ts
+var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
+
 // src/server/middleware/csrf.ts
+var import_crypto = __toESM(require("crypto"));
+var CSRF_COOKIE_NAME = "civic_csrf_token";
+var SESSION_COOKIE_NAME = "civic_session";
 function generateCsrfToken() {
   return import_crypto.default.randomBytes(24).toString("hex");
 }
@@ -199,17 +211,9 @@ function csrfProtection(req, res, next) {
   }
   next();
 }
-var import_crypto, CSRF_COOKIE_NAME, SESSION_COOKIE_NAME;
-var init_csrf = __esm({
-  "src/server/middleware/csrf.ts"() {
-    "use strict";
-    import_crypto = __toESM(require("crypto"));
-    CSRF_COOKIE_NAME = "civic_csrf_token";
-    SESSION_COOKIE_NAME = "civic_session";
-  }
-});
 
 // src/server/middleware/auth.ts
+var FALLBACK_SECRET = "civic-resolve-fallback-secret-2026";
 function getJwtSecret() {
   if (process.env.NODE_ENV === "production") {
     const secret = process.env.JWT_SECRET;
@@ -225,6 +229,7 @@ function getJwtSecret() {
 function assertAuthConfigured() {
   getJwtSecret();
 }
+var TOKEN_COOKIE_NAME = "civic_session";
 function signToken(user) {
   return import_jsonwebtoken.default.sign(
     {
@@ -308,17 +313,6 @@ function requireRole(...allowedRoles) {
     next();
   };
 }
-var import_jsonwebtoken, FALLBACK_SECRET, TOKEN_COOKIE_NAME;
-var init_auth = __esm({
-  "src/server/middleware/auth.ts"() {
-    "use strict";
-    import_jsonwebtoken = __toESM(require("jsonwebtoken"));
-    init_app();
-    init_csrf();
-    FALLBACK_SECRET = "civic-resolve-fallback-secret-2026";
-    TOKEN_COOKIE_NAME = "civic_session";
-  }
-});
 
 // src/server/services/audit.ts
 async function logAuditEvent(prisma2, params) {
@@ -335,13 +329,9 @@ async function logAuditEvent(prisma2, params) {
     console.error("[Audit Error] Failed to record audit event:", err);
   }
 }
-var init_audit = __esm({
-  "src/server/services/audit.ts"() {
-    "use strict";
-  }
-});
 
 // src/server/services/rateLimit.ts
+var memoryStore = /* @__PURE__ */ new Map();
 function getClientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
   if (typeof forwarded === "string") {
@@ -448,367 +438,332 @@ function rateLimiter(options) {
     next();
   };
 }
-var memoryStore;
-var init_rateLimit = __esm({
-  "src/server/services/rateLimit.ts"() {
-    "use strict";
-    init_app();
-    memoryStore = /* @__PURE__ */ new Map();
-  }
-});
 
 // src/server/routes/auth.ts
-var import_express, import_bcryptjs, router, loginLimiter, registerLimiter, auth_default;
-var init_auth2 = __esm({
-  "src/server/routes/auth.ts"() {
-    "use strict";
-    import_express = require("express");
-    import_bcryptjs = __toESM(require("bcryptjs"));
-    init_app();
-    init_schemas();
-    init_auth();
-    init_audit();
-    init_rateLimit();
-    router = (0, import_express.Router)();
-    loginLimiter = rateLimiter({
-      prefix: "rl:auth:login",
-      maxPoints: 10,
-      windowSeconds: 15 * 60,
-      // 15 minutes
-      message: "Too many login attempts. Please wait 15 minutes before trying again."
-    });
-    registerLimiter = rateLimiter({
-      prefix: "rl:auth:register",
-      maxPoints: 5,
-      windowSeconds: 60 * 60,
-      // 1 hour
-      message: "Too many account registrations from this network. Please try again later."
-    });
-    router.post("/register", registerLimiter, async (req, res) => {
-      try {
-        const parsed = RegisterSchema.safeParse(req.body);
-        if (!parsed.success) {
-          res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid registration data" });
-          return;
-        }
-        const { name, email, password } = parsed.data;
-        const existingUser = await prisma.user.findUnique({ where: { email } });
-        if (existingUser) {
-          res.status(409).json({ success: false, error: "An account with this email address already exists." });
-          return;
-        }
-        const salt = await import_bcryptjs.default.genSalt(10);
-        const passwordHash = await import_bcryptjs.default.hash(password, salt);
-        const user = await prisma.user.create({
-          data: {
-            name,
-            email,
-            passwordHash,
-            role: "CITIZEN"
-            // Strictly CITIZEN
-          }
-        });
-        const safeUser = {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          departmentId: null,
-          department: null,
-          createdAt: user.createdAt.toISOString()
-        };
-        const token = signToken(safeUser);
-        setAuthCookie(res, token);
-        await logAuditEvent(prisma, {
-          actorId: user.id,
-          action: "USER_REGISTER",
-          details: { email: user.email, role: "CITIZEN" }
-        });
-        res.status(201).json({
-          success: true,
-          data: { user: safeUser },
-          message: "Account created successfully."
-        });
-      } catch (err) {
-        console.error("[Register Error]", err);
-        res.status(500).json({ success: false, error: "Failed to create account. Please try again." });
+var router = (0, import_express.Router)();
+var loginLimiter = rateLimiter({
+  prefix: "rl:auth:login",
+  maxPoints: 10,
+  windowSeconds: 15 * 60,
+  // 15 minutes
+  message: "Too many login attempts. Please wait 15 minutes before trying again."
+});
+var registerLimiter = rateLimiter({
+  prefix: "rl:auth:register",
+  maxPoints: 5,
+  windowSeconds: 60 * 60,
+  // 1 hour
+  message: "Too many account registrations from this network. Please try again later."
+});
+router.post("/register", registerLimiter, async (req, res) => {
+  try {
+    const parsed = RegisterSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid registration data" });
+      return;
+    }
+    const { name, email, password } = parsed.data;
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      res.status(409).json({ success: false, error: "An account with this email address already exists." });
+      return;
+    }
+    const salt = await import_bcryptjs.default.genSalt(10);
+    const passwordHash = await import_bcryptjs.default.hash(password, salt);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role: "CITIZEN"
+        // Strictly CITIZEN
       }
     });
-    router.post("/login", loginLimiter, async (req, res) => {
-      try {
-        const parsed = LoginSchema.safeParse(req.body);
-        if (!parsed.success) {
-          res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid login credentials" });
-          return;
-        }
-        const { email, password } = parsed.data;
-        const isProd = process.env.NODE_ENV === "production";
-        const demoEnabled = process.env.ENABLE_DEMO_ACCOUNTS === "true" || !isProd && process.env.ENABLE_DEMO_ACCOUNTS !== "false";
-        const KNOWN_DEMO_PASSWORDS = ["Admin123!", "Staff123!", "Citizen123!"];
-        if (!demoEnabled && KNOWN_DEMO_PASSWORDS.includes(password)) {
-          res.status(403).json({
-            success: false,
-            error: "Demonstration logins are disabled in production. Please use your official credentials."
-          });
-          return;
-        }
-        const user = await prisma.user.findUnique({
-          where: { email },
-          include: {
-            department: {
-              select: { id: true, name: true, code: true, description: true }
-            }
-          }
-        });
-        if (!user) {
-          res.status(401).json({ success: false, error: "Invalid email or password." });
-          return;
-        }
-        const isMatch = await import_bcryptjs.default.compare(password, user.passwordHash);
-        if (!isMatch) {
-          res.status(401).json({ success: false, error: "Invalid email or password." });
-          return;
-        }
-        const safeUser = {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          departmentId: user.departmentId,
-          department: user.department,
-          createdAt: user.createdAt.toISOString()
-        };
-        const token = signToken(safeUser);
-        setAuthCookie(res, token);
-        await logAuditEvent(prisma, {
-          actorId: user.id,
-          action: "USER_LOGIN",
-          details: { email: user.email, role: user.role }
-        });
-        res.json({
-          success: true,
-          data: { user: safeUser },
-          message: "Logged in successfully."
-        });
-      } catch (err) {
-        console.error("[Login Error]", err);
-        res.status(500).json({ success: false, error: "Login failed. Please try again later." });
-      }
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      departmentId: null,
+      department: null,
+      createdAt: user.createdAt.toISOString()
+    };
+    const token = signToken(safeUser);
+    setAuthCookie(res, token);
+    await logAuditEvent(prisma, {
+      actorId: user.id,
+      action: "USER_REGISTER",
+      details: { email: user.email, role: "CITIZEN" }
     });
-    router.post("/logout", authenticateToken, async (req, res) => {
-      if (req.user) {
-        await logAuditEvent(prisma, {
-          actorId: req.user.id,
-          action: "USER_LOGOUT",
-          details: { email: req.user.email }
-        });
-      }
-      clearAuthCookie(res);
-      res.json({ success: true, message: "Logged out successfully." });
+    res.status(201).json({
+      success: true,
+      data: { user: safeUser },
+      message: "Account created successfully."
     });
-    router.get("/me", authenticateToken, (req, res) => {
-      res.json({
-        success: true,
-        data: { user: req.user }
-      });
-    });
-    auth_default = router;
+  } catch (err) {
+    console.error("[Register Error]", err);
+    res.status(500).json({ success: false, error: "Failed to create account. Please try again." });
   }
 });
+router.post("/login", loginLimiter, async (req, res) => {
+  try {
+    const parsed = LoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid login credentials" });
+      return;
+    }
+    const { email, password } = parsed.data;
+    const isProd = process.env.NODE_ENV === "production";
+    const demoEnabled = process.env.ENABLE_DEMO_ACCOUNTS === "true" || !isProd && process.env.ENABLE_DEMO_ACCOUNTS !== "false";
+    const KNOWN_DEMO_PASSWORDS = ["Admin123!", "Staff123!", "Citizen123!"];
+    if (!demoEnabled && KNOWN_DEMO_PASSWORDS.includes(password)) {
+      res.status(403).json({
+        success: false,
+        error: "Demonstration logins are disabled in production. Please use your official credentials."
+      });
+      return;
+    }
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        department: {
+          select: { id: true, name: true, code: true, description: true }
+        }
+      }
+    });
+    if (!user) {
+      res.status(401).json({ success: false, error: "Invalid email or password." });
+      return;
+    }
+    const isMatch = await import_bcryptjs.default.compare(password, user.passwordHash);
+    if (!isMatch) {
+      res.status(401).json({ success: false, error: "Invalid email or password." });
+      return;
+    }
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      departmentId: user.departmentId,
+      department: user.department,
+      createdAt: user.createdAt.toISOString()
+    };
+    const token = signToken(safeUser);
+    setAuthCookie(res, token);
+    await logAuditEvent(prisma, {
+      actorId: user.id,
+      action: "USER_LOGIN",
+      details: { email: user.email, role: user.role }
+    });
+    res.json({
+      success: true,
+      data: { user: safeUser },
+      message: "Logged in successfully."
+    });
+  } catch (err) {
+    console.error("[Login Error]", err);
+    res.status(500).json({ success: false, error: "Login failed. Please try again later." });
+  }
+});
+router.post("/logout", authenticateToken, async (req, res) => {
+  if (req.user) {
+    await logAuditEvent(prisma, {
+      actorId: req.user.id,
+      action: "USER_LOGOUT",
+      details: { email: req.user.email }
+    });
+  }
+  clearAuthCookie(res);
+  res.json({ success: true, message: "Logged out successfully." });
+});
+router.get("/me", authenticateToken, (req, res) => {
+  res.json({
+    success: true,
+    data: { user: req.user }
+  });
+});
+var auth_default = router;
 
 // src/server/routes/meta.ts
-var import_express2, router2, meta_default;
-var init_meta = __esm({
-  "src/server/routes/meta.ts"() {
-    "use strict";
-    import_express2 = require("express");
-    init_app();
-    router2 = (0, import_express2.Router)();
-    router2.get("/departments", async (_req, res) => {
-      try {
-        const departments = await prisma.department.findMany({
-          orderBy: { name: "asc" },
-          select: { id: true, name: true, code: true, description: true }
-        });
-        res.json({ success: true, data: departments });
-      } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to fetch departments." });
-      }
+var import_express2 = require("express");
+var router2 = (0, import_express2.Router)();
+router2.get("/departments", async (_req, res) => {
+  try {
+    const departments = await prisma.department.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, code: true, description: true }
     });
-    router2.get("/categories", async (_req, res) => {
-      try {
-        const categories = await prisma.category.findMany({
-          orderBy: { name: "asc" },
-          select: { id: true, name: true, code: true, description: true, keywords: true }
-        });
-        res.json({ success: true, data: categories });
-      } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to fetch categories." });
-      }
-    });
-    router2.get("/service-areas", async (_req, res) => {
-      try {
-        const areas = await prisma.serviceArea.findMany({
-          orderBy: { name: "asc" },
-          select: { id: true, name: true, code: true, description: true }
-        });
-        res.json({ success: true, data: areas });
-      } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to fetch service areas." });
-      }
-    });
-    router2.get("/routing-rules", async (_req, res) => {
-      try {
-        const rules = await prisma.routingRule.findMany({
-          include: {
-            category: { select: { id: true, name: true, code: true } },
-            serviceArea: { select: { id: true, name: true, code: true } },
-            department: { select: { id: true, name: true, code: true } }
-          },
-          orderBy: [{ category: { name: "asc" } }, { serviceArea: { name: "asc" } }]
-        });
-        res.json({ success: true, data: rules });
-      } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to fetch routing rules." });
-      }
-    });
-    router2.get("/config", async (_req, res) => {
-      const isProd = process.env.NODE_ENV === "production";
-      const enableDemoAccounts = process.env.ENABLE_DEMO_ACCOUNTS === "true" || !isProd && process.env.ENABLE_DEMO_ACCOUNTS !== "false";
-      res.json({
-        success: true,
-        data: {
-          enableDemoAccounts,
-          storageProvider: process.env.BLOB_READ_WRITE_TOKEN ? "vercel-blob" : "local",
-          directUploadEnabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
-          aiProvider: process.env.AI_PROVIDER || "fallback",
-          environment: process.env.NODE_ENV || "development"
-        }
-      });
-    });
-    meta_default = router2;
+    res.json({ success: true, data: departments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch departments." });
   }
 });
+router2.get("/categories", async (_req, res) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, code: true, description: true, keywords: true }
+    });
+    res.json({ success: true, data: categories });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch categories." });
+  }
+});
+router2.get("/service-areas", async (_req, res) => {
+  try {
+    const areas = await prisma.serviceArea.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, code: true, description: true }
+    });
+    res.json({ success: true, data: areas });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch service areas." });
+  }
+});
+router2.get("/routing-rules", async (_req, res) => {
+  try {
+    const rules = await prisma.routingRule.findMany({
+      include: {
+        category: { select: { id: true, name: true, code: true } },
+        serviceArea: { select: { id: true, name: true, code: true } },
+        department: { select: { id: true, name: true, code: true } }
+      },
+      orderBy: [{ category: { name: "asc" } }, { serviceArea: { name: "asc" } }]
+    });
+    res.json({ success: true, data: rules });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to fetch routing rules." });
+  }
+});
+router2.get("/config", async (_req, res) => {
+  const isProd = process.env.NODE_ENV === "production";
+  const enableDemoAccounts = process.env.ENABLE_DEMO_ACCOUNTS === "true" || !isProd && process.env.ENABLE_DEMO_ACCOUNTS !== "false";
+  res.json({
+    success: true,
+    data: {
+      enableDemoAccounts,
+      storageProvider: process.env.BLOB_READ_WRITE_TOKEN ? "vercel-blob" : "local",
+      directUploadEnabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+      aiProvider: process.env.AI_PROVIDER || "fallback",
+      environment: process.env.NODE_ENV || "development"
+    }
+  });
+});
+var meta_default = router2;
 
-// src/shared/constants.ts
-var CATEGORIES, SCORING_CONFIG, UPLOAD_LIMITS, STATUS_TRANSITIONS;
-var init_constants = __esm({
-  "src/shared/constants.ts"() {
-    "use strict";
-    CATEGORIES = [
-      {
-        code: "ROADS",
-        name: "Roads and potholes",
-        description: "Damaged asphalt, craters, potholes, missing road markings, damaged curbs, or hazardous street surfaces.",
-        defaultKeywords: ["pothole", "crater", "asphalt", "road damage", "curb", "pavement", "street surface", "traffic hazard"]
-      },
-      {
-        code: "STREETLIGHTS",
-        name: "Streetlights",
-        description: "Broken lamp posts, dark streets, flickering bulbs, damaged wiring, or public lighting outages.",
-        defaultKeywords: ["streetlight", "lamp", "light post", "flicker", "dark street", "blackout street", "light bulb"]
-      },
-      {
-        code: "WATER",
-        name: "Water supply",
-        description: "Burst pipelines, contaminated water, tap water outages, low water pressure, or main leaks.",
-        defaultKeywords: ["water pipe", "pipe burst", "contaminated water", "tap water", "low pressure", "no water", "leak", "water supply"]
-      },
-      {
-        code: "DRAINAGE",
-        name: "Drainage and sewage",
-        description: "Overflowing storm drains, sewage stench, clogged gutters, manhole blockages, or wastewater backups.",
-        defaultKeywords: ["drain", "drainage", "sewage", "stench", "manhole", "overflow", "clogged gutter", "wastewater", "sewer"]
-      },
-      {
-        code: "SANITATION",
-        name: "Garbage and sanitation",
-        description: "Uncollected refuse, illegal dumping, overflowing public trash bins, rotting waste, or litter accumulation.",
-        defaultKeywords: ["garbage", "trash", "waste", "litter", "dumping", "rubbish", "refuse", "sanitation", "bins"]
-      },
-      {
-        code: "OTHER",
-        name: "Other / uncertain",
-        description: "Uncertain, multi-domain, ambiguous civic issues, or issues requiring administrative triage.",
-        defaultKeywords: ["other", "general", "unknown", "unsure"]
-      }
-    ];
-    SCORING_CONFIG = {
-      weights: {
-        priority: 0.45,
-        urgency: 0.4,
-        duration: 0.15
-      },
-      // Strict threshold: strictly greater than 7 (score > 7)
-      starThreshold: 7,
-      confidenceThreshold: 0.75,
-      maxScore: 10,
-      minScore: 0,
-      daysPerDurationPoint: 3,
-      maxDurationScoreDays: 30
-      // 30 / 3 = 10
-    };
-    UPLOAD_LIMITS = {
-      maxFiles: 3,
-      maxSizeBytes: 5 * 1024 * 1024,
-      // 5 MB
-      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
-      allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"]
-    };
-    STATUS_TRANSITIONS = {
-      SUBMITTED: ["ASSIGNED"],
-      ASSIGNED: ["IN_PROGRESS", "SUBMITTED"],
-      IN_PROGRESS: ["RESOLVED", "ASSIGNED"],
-      RESOLVED: ["ASSIGNED"]
-      // Can be reopened by admin with explanation
-    };
-  }
-});
+// src/server/routes/complaints.ts
+var import_express3 = require("express");
+var import_fs3 = __toESM(require("fs"));
 
 // src/server/middleware/upload.ts
-var import_multer, import_path, import_fs, import_crypto2, uploadDir, storage, complaintUpload;
-var init_upload = __esm({
-  "src/server/middleware/upload.ts"() {
-    "use strict";
-    import_multer = __toESM(require("multer"));
-    import_path = __toESM(require("path"));
-    import_fs = __toESM(require("fs"));
-    import_crypto2 = __toESM(require("crypto"));
-    init_constants();
-    uploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL ? "/tmp/uploads" : import_path.default.resolve(process.cwd(), "uploads"));
-    try {
-      if (!import_fs.default.existsSync(uploadDir)) {
-        import_fs.default.mkdirSync(uploadDir, { recursive: true });
-      }
-    } catch (e) {
-      console.warn("[Upload Directory Setup Notice]", e);
+var import_multer = __toESM(require("multer"));
+var import_path = __toESM(require("path"));
+var import_fs = __toESM(require("fs"));
+var import_crypto2 = __toESM(require("crypto"));
+
+// src/shared/constants.ts
+var CATEGORIES = [
+  {
+    code: "ROADS",
+    name: "Roads and potholes",
+    description: "Damaged asphalt, craters, potholes, missing road markings, damaged curbs, or hazardous street surfaces.",
+    defaultKeywords: ["pothole", "crater", "asphalt", "road damage", "curb", "pavement", "street surface", "traffic hazard"]
+  },
+  {
+    code: "STREETLIGHTS",
+    name: "Streetlights",
+    description: "Broken lamp posts, dark streets, flickering bulbs, damaged wiring, or public lighting outages.",
+    defaultKeywords: ["streetlight", "lamp", "light post", "flicker", "dark street", "blackout street", "light bulb"]
+  },
+  {
+    code: "WATER",
+    name: "Water supply",
+    description: "Burst pipelines, contaminated water, tap water outages, low water pressure, or main leaks.",
+    defaultKeywords: ["water pipe", "pipe burst", "contaminated water", "tap water", "low pressure", "no water", "leak", "water supply"]
+  },
+  {
+    code: "DRAINAGE",
+    name: "Drainage and sewage",
+    description: "Overflowing storm drains, sewage stench, clogged gutters, manhole blockages, or wastewater backups.",
+    defaultKeywords: ["drain", "drainage", "sewage", "stench", "manhole", "overflow", "clogged gutter", "wastewater", "sewer"]
+  },
+  {
+    code: "SANITATION",
+    name: "Garbage and sanitation",
+    description: "Uncollected refuse, illegal dumping, overflowing public trash bins, rotting waste, or litter accumulation.",
+    defaultKeywords: ["garbage", "trash", "waste", "litter", "dumping", "rubbish", "refuse", "sanitation", "bins"]
+  },
+  {
+    code: "OTHER",
+    name: "Other / uncertain",
+    description: "Uncertain, multi-domain, ambiguous civic issues, or issues requiring administrative triage.",
+    defaultKeywords: ["other", "general", "unknown", "unsure"]
+  }
+];
+var SCORING_CONFIG = {
+  weights: {
+    priority: 0.45,
+    urgency: 0.4,
+    duration: 0.15
+  },
+  // Strict threshold: strictly greater than 7 (score > 7)
+  starThreshold: 7,
+  confidenceThreshold: 0.75,
+  maxScore: 10,
+  minScore: 0,
+  daysPerDurationPoint: 3,
+  maxDurationScoreDays: 30
+  // 30 / 3 = 10
+};
+var UPLOAD_LIMITS = {
+  maxFiles: 3,
+  maxSizeBytes: 5 * 1024 * 1024,
+  // 5 MB
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"]
+};
+var STATUS_TRANSITIONS = {
+  SUBMITTED: ["ASSIGNED"],
+  ASSIGNED: ["IN_PROGRESS", "SUBMITTED"],
+  IN_PROGRESS: ["RESOLVED", "ASSIGNED"],
+  RESOLVED: ["ASSIGNED"]
+  // Can be reopened by admin with explanation
+};
+
+// src/server/middleware/upload.ts
+var uploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL ? "/tmp/uploads" : import_path.default.resolve(process.cwd(), "uploads"));
+try {
+  if (!import_fs.default.existsSync(uploadDir)) {
+    import_fs.default.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn("[Upload Directory Setup Notice]", e);
+}
+var storage = import_multer.default.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const randomBytes = import_crypto2.default.randomBytes(16).toString("hex");
+    const ext = import_path.default.extname(file.originalname).toLowerCase();
+    const safeExt = UPLOAD_LIMITS.allowedExtensions.includes(ext) ? ext : ".jpg";
+    cb(null, `${Date.now()}-${randomBytes}${safeExt}`);
+  }
+});
+var complaintUpload = (0, import_multer.default)({
+  storage,
+  limits: {
+    fileSize: UPLOAD_LIMITS.maxSizeBytes,
+    files: UPLOAD_LIMITS.maxFiles
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = import_path.default.extname(file.originalname).toLowerCase();
+    if (UPLOAD_LIMITS.allowedMimeTypes.includes(file.mimetype) && UPLOAD_LIMITS.allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type "${file.mimetype}". Allowed types: JPEG, PNG, WEBP.`));
     }
-    storage = import_multer.default.diskStorage({
-      destination: (_req, _file, cb) => {
-        cb(null, uploadDir);
-      },
-      filename: (_req, file, cb) => {
-        const randomBytes = import_crypto2.default.randomBytes(16).toString("hex");
-        const ext = import_path.default.extname(file.originalname).toLowerCase();
-        const safeExt = UPLOAD_LIMITS.allowedExtensions.includes(ext) ? ext : ".jpg";
-        cb(null, `${Date.now()}-${randomBytes}${safeExt}`);
-      }
-    });
-    complaintUpload = (0, import_multer.default)({
-      storage,
-      limits: {
-        fileSize: UPLOAD_LIMITS.maxSizeBytes,
-        files: UPLOAD_LIMITS.maxFiles
-      },
-      fileFilter: (_req, file, cb) => {
-        const ext = import_path.default.extname(file.originalname).toLowerCase();
-        if (UPLOAD_LIMITS.allowedMimeTypes.includes(file.mimetype) && UPLOAD_LIMITS.allowedExtensions.includes(ext)) {
-          cb(null, true);
-        } else {
-          cb(new Error(`Invalid file type "${file.mimetype}". Allowed types: JPEG, PNG, WEBP.`));
-        }
-      }
-    });
   }
 });
 
@@ -857,14 +812,17 @@ function computeComplaintScores(data, now = /* @__PURE__ */ new Date()) {
     effectiveFeasibility
   };
 }
-var init_scoring = __esm({
-  "src/server/services/scoring.ts"() {
-    "use strict";
-    init_constants();
-  }
-});
 
 // src/server/services/ai/classifier.ts
+var import_zod2 = require("zod");
+var AIResponseSchema = import_zod2.z.object({
+  categoryCode: import_zod2.z.enum(["ROADS", "STREETLIGHTS", "WATER", "DRAINAGE", "SANITATION", "OTHER"]),
+  confidence: import_zod2.z.number().min(0).max(1),
+  priority: import_zod2.z.number().min(0).max(10),
+  urgency: import_zod2.z.number().min(0).max(10),
+  feasibility: import_zod2.z.number().min(0).max(10),
+  rationale: import_zod2.z.string().min(5).max(500)
+});
 function classifyWithRules(title, description) {
   const combinedText = `${title} ${description}`.toLowerCase();
   const scores = {
@@ -1037,22 +995,6 @@ Output strictly valid JSON with this exact structure:
   }
   return classifyWithRules(title, description);
 }
-var import_zod2, AIResponseSchema;
-var init_classifier = __esm({
-  "src/server/services/ai/classifier.ts"() {
-    "use strict";
-    import_zod2 = require("zod");
-    init_constants();
-    AIResponseSchema = import_zod2.z.object({
-      categoryCode: import_zod2.z.enum(["ROADS", "STREETLIGHTS", "WATER", "DRAINAGE", "SANITATION", "OTHER"]),
-      confidence: import_zod2.z.number().min(0).max(1),
-      priority: import_zod2.z.number().min(0).max(10),
-      urgency: import_zod2.z.number().min(0).max(10),
-      feasibility: import_zod2.z.number().min(0).max(10),
-      rationale: import_zod2.z.string().min(5).max(500)
-    });
-  }
-});
 
 // src/server/services/routing.ts
 async function routeComplaint(prisma2, categoryId, serviceAreaId) {
@@ -1104,13 +1046,25 @@ async function routeComplaint(prisma2, categoryId, serviceAreaId) {
     requiresReview: false
   };
 }
-var init_routing = __esm({
-  "src/server/services/routing.ts"() {
-    "use strict";
-  }
-});
 
 // src/server/services/storage.ts
+var import_path2 = __toESM(require("path"));
+var import_fs2 = __toESM(require("fs"));
+var import_crypto3 = __toESM(require("crypto"));
+var import_stream = require("stream");
+var import_blob = require("@vercel/blob");
+var import_client = require("@vercel/blob/client");
+var localUploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL ? "/tmp/uploads" : import_path2.default.resolve(process.cwd(), "uploads"));
+try {
+  if (!import_fs2.default.existsSync(localUploadDir)) {
+    import_fs2.default.mkdirSync(localUploadDir, { recursive: true });
+  }
+} catch (e) {
+  console.warn("[Storage] Notice on local upload directory creation:", e);
+}
+var isBlobStorageConfigured = () => {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+};
 function assertStorageConfigured() {
   if (process.env.NODE_ENV === "production" && !isBlobStorageConfigured()) {
     throw new Error(
@@ -1382,32 +1336,24 @@ async function markUploadGrantsUsed(storageFilenames, userId, prismaClient) {
     console.warn("[Storage] Error marking upload grants as used:", err);
   }
 }
-var import_path2, import_fs2, import_crypto3, import_stream, import_blob, import_client, localUploadDir, isBlobStorageConfigured;
-var init_storage = __esm({
-  "src/server/services/storage.ts"() {
-    "use strict";
-    import_path2 = __toESM(require("path"));
-    import_fs2 = __toESM(require("fs"));
-    import_crypto3 = __toESM(require("crypto"));
-    import_stream = require("stream");
-    import_blob = require("@vercel/blob");
-    import_client = require("@vercel/blob/client");
-    init_constants();
-    localUploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL ? "/tmp/uploads" : import_path2.default.resolve(process.cwd(), "uploads"));
-    try {
-      if (!import_fs2.default.existsSync(localUploadDir)) {
-        import_fs2.default.mkdirSync(localUploadDir, { recursive: true });
-      }
-    } catch (e) {
-      console.warn("[Storage] Notice on local upload directory creation:", e);
-    }
-    isBlobStorageConfigured = () => {
-      return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-    };
-  }
-});
 
 // src/server/routes/complaints.ts
+var router3 = (0, import_express3.Router)();
+var uploadAuthLimiter = rateLimiter({
+  prefix: "rl:upload:auth",
+  maxPoints: 15,
+  windowSeconds: 15 * 60,
+  // 15 requests per 15 mins
+  message: "Upload authorization limit reached. Please wait a few minutes before uploading more photos."
+});
+var complaintSubmitLimiter = rateLimiter({
+  prefix: "rl:complaint:submit",
+  maxPoints: 10,
+  windowSeconds: 15 * 60,
+  // 10 complaints per 15 mins
+  message: "Complaint submission limit reached. Please wait a few minutes before submitting another report.",
+  keyGenerator: (req) => req.user?.id || req.ip || "unknown"
+});
 function formatComplaint(c, currentUserRole) {
   const scores = computeComplaintScores({
     createdAt: c.createdAt,
@@ -1506,807 +1452,140 @@ async function generateComplaintReference() {
   }
   return candidate;
 }
-var import_express3, import_fs3, router3, uploadAuthLimiter, complaintSubmitLimiter, complaints_default;
-var init_complaints = __esm({
-  "src/server/routes/complaints.ts"() {
-    "use strict";
-    import_express3 = require("express");
-    import_fs3 = __toESM(require("fs"));
-    init_app();
-    init_auth();
-    init_upload();
-    init_schemas();
-    init_scoring();
-    init_classifier();
-    init_routing();
-    init_audit();
-    init_storage();
-    init_constants();
-    init_rateLimit();
-    router3 = (0, import_express3.Router)();
-    uploadAuthLimiter = rateLimiter({
-      prefix: "rl:upload:auth",
-      maxPoints: 15,
-      windowSeconds: 15 * 60,
-      // 15 requests per 15 mins
-      message: "Upload authorization limit reached. Please wait a few minutes before uploading more photos."
-    });
-    complaintSubmitLimiter = rateLimiter({
-      prefix: "rl:complaint:submit",
-      maxPoints: 10,
-      windowSeconds: 15 * 60,
-      // 10 complaints per 15 mins
-      message: "Complaint submission limit reached. Please wait a few minutes before submitting another report.",
-      keyGenerator: (req) => req.user?.id || req.ip || "unknown"
-    });
-    router3.post("/upload-handler", authenticateToken, uploadAuthLimiter, (req, res) => {
-      return handleDirectBlobUpload(req, res, prisma);
-    });
-    router3.post(
-      "/",
-      authenticateToken,
-      complaintSubmitLimiter,
-      complaintUpload.array("attachments", 3),
-      async (req, res) => {
+router3.post("/upload-handler", authenticateToken, uploadAuthLimiter, (req, res) => {
+  return handleDirectBlobUpload(req, res, prisma);
+});
+router3.post(
+  "/",
+  authenticateToken,
+  complaintSubmitLimiter,
+  complaintUpload.array("attachments", 3),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: "Authentication required" });
+        return;
+      }
+      const parsed = ComplaintCreateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Validation error" });
+        return;
+      }
+      const { title, description, address, serviceAreaId, firstNoticedDate } = parsed.data;
+      const serviceArea = await prisma.serviceArea.findUnique({ where: { id: serviceAreaId } });
+      if (!serviceArea) {
+        res.status(400).json({ success: false, error: "Selected service area does not exist" });
+        return;
+      }
+      const reference = await generateComplaintReference();
+      const files = req.files || [];
+      let finalAttachments = [];
+      if (req.body.preUploadedAttachments) {
         try {
-          if (!req.user) {
-            res.status(401).json({ success: false, error: "Authentication required" });
-            return;
-          }
-          const parsed = ComplaintCreateSchema.safeParse(req.body);
-          if (!parsed.success) {
-            res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Validation error" });
-            return;
-          }
-          const { title, description, address, serviceAreaId, firstNoticedDate } = parsed.data;
-          const serviceArea = await prisma.serviceArea.findUnique({ where: { id: serviceAreaId } });
-          if (!serviceArea) {
-            res.status(400).json({ success: false, error: "Selected service area does not exist" });
-            return;
-          }
-          const reference = await generateComplaintReference();
-          const files = req.files || [];
-          let finalAttachments = [];
-          if (req.body.preUploadedAttachments) {
-            try {
-              const preUploaded = typeof req.body.preUploadedAttachments === "string" ? JSON.parse(req.body.preUploadedAttachments) : req.body.preUploadedAttachments;
-              if (Array.isArray(preUploaded)) {
-                for (const item of preUploaded.slice(0, 3)) {
-                  const validation = await validatePreUploadedAttachment(item, req.user.id, prisma);
-                  if (!validation.valid) {
-                    res.status(400).json({
-                      success: false,
-                      error: `Attachment authorization failed: ${validation.error}`
-                    });
-                    return;
-                  }
-                  finalAttachments.push({
-                    originalFilename: String(item.originalFilename || "photo.jpg"),
-                    storageFilename: String(item.storageFilename),
-                    mimeType: String(item.mimeType || "image/jpeg"),
-                    fileSize: Number(item.fileSize || 0)
-                  });
-                }
+          const preUploaded = typeof req.body.preUploadedAttachments === "string" ? JSON.parse(req.body.preUploadedAttachments) : req.body.preUploadedAttachments;
+          if (Array.isArray(preUploaded)) {
+            for (const item of preUploaded.slice(0, 3)) {
+              const validation = await validatePreUploadedAttachment(item, req.user.id, prisma);
+              if (!validation.valid) {
+                res.status(400).json({
+                  success: false,
+                  error: `Attachment authorization failed: ${validation.error}`
+                });
+                return;
               }
-            } catch (e) {
-              res.status(400).json({ success: false, error: "Invalid attachments format: " + e.message });
+              finalAttachments.push({
+                originalFilename: String(item.originalFilename || "photo.jpg"),
+                storageFilename: String(item.storageFilename),
+                mimeType: String(item.mimeType || "image/jpeg"),
+                fileSize: Number(item.fileSize || 0)
+              });
+            }
+          }
+        } catch (e) {
+          res.status(400).json({ success: false, error: "Invalid attachments format: " + e.message });
+          return;
+        }
+      }
+      if (files.length > 0) {
+        for (const file of files) {
+          if (isBlobStorageConfigured()) {
+            const buffer = await import_fs3.default.promises.readFile(file.path);
+            const saved = await saveAttachment(buffer, file.originalname, file.mimetype, req.user.id);
+            finalAttachments.push({
+              originalFilename: saved.originalFilename,
+              storageFilename: saved.storageFilename,
+              mimeType: saved.mimeType,
+              fileSize: saved.fileSize
+            });
+            import_fs3.default.promises.unlink(file.path).catch(() => {
+            });
+          } else {
+            if (process.env.NODE_ENV === "production") {
+              res.status(500).json({
+                success: false,
+                error: "Production storage misconfiguration: BLOB_READ_WRITE_TOKEN is required for uploads."
+              });
               return;
             }
-          }
-          if (files.length > 0) {
-            for (const file of files) {
-              if (isBlobStorageConfigured()) {
-                const buffer = await import_fs3.default.promises.readFile(file.path);
-                const saved = await saveAttachment(buffer, file.originalname, file.mimetype, req.user.id);
-                finalAttachments.push({
-                  originalFilename: saved.originalFilename,
-                  storageFilename: saved.storageFilename,
-                  mimeType: saved.mimeType,
-                  fileSize: saved.fileSize
-                });
-                import_fs3.default.promises.unlink(file.path).catch(() => {
-                });
-              } else {
-                if (process.env.NODE_ENV === "production") {
-                  res.status(500).json({
-                    success: false,
-                    error: "Production storage misconfiguration: BLOB_READ_WRITE_TOKEN is required for uploads."
-                  });
-                  return;
-                }
-                finalAttachments.push({
-                  originalFilename: file.originalname,
-                  storageFilename: file.filename,
-                  mimeType: file.mimetype,
-                  fileSize: file.size
-                });
-              }
-            }
-          }
-          const complaint = await prisma.complaint.create({
-            data: {
-              reference,
-              title,
-              description,
-              address,
-              serviceAreaId,
-              citizenId: req.user.id,
-              firstNoticedDate: firstNoticedDate ? new Date(firstNoticedDate) : null,
-              status: "SUBMITTED",
-              analysisState: "PENDING",
-              reviewState: "NOT_REQUIRED",
-              attachments: {
-                create: finalAttachments
-              }
-            }
-          });
-          await logAuditEvent(prisma, {
-            complaintId: complaint.id,
-            actorId: req.user.id,
-            action: "SUBMIT_COMPLAINT",
-            details: { reference, title, serviceArea: serviceArea.name, filesCount: files.length }
-          });
-          if (finalAttachments.length > 0) {
-            await markUploadGrantsUsed(
-              finalAttachments.map((a) => a.storageFilename),
-              req.user.id,
-              prisma
-            );
-          }
-          let analysisResult;
-          try {
-            await prisma.complaint.update({
-              where: { id: complaint.id },
-              data: { analysisState: "PROCESSING" }
-            });
-            analysisResult = await classifyComplaint(title, description);
-            const category = await prisma.category.findUnique({
-              where: { code: analysisResult.categoryCode }
-            });
-            const categoryId = category ? category.id : null;
-            const routingResult = await routeComplaint(prisma, categoryId, serviceAreaId);
-            const shouldReview = analysisResult.needsReview || routingResult.requiresReview;
-            const newStatus = routingResult.success && !shouldReview ? "ASSIGNED" : "SUBMITTED";
-            const updated = await prisma.complaint.update({
-              where: { id: complaint.id },
-              data: {
-                categoryId,
-                departmentId: routingResult.departmentId,
-                status: newStatus,
-                analysisState: "COMPLETED",
-                reviewState: shouldReview ? "REQUIRED" : "NOT_REQUIRED",
-                analysisProvider: analysisResult.provider,
-                analysisVersion: analysisResult.version,
-                classificationConfidence: analysisResult.confidence,
-                aiRationale: analysisResult.rationale,
-                priority: analysisResult.priority,
-                urgency: analysisResult.urgency,
-                feasibility: analysisResult.feasibility
-              },
-              include: {
-                serviceArea: true,
-                category: true,
-                department: true,
-                attachments: true,
-                citizen: { select: { id: true, name: true, email: true } }
-              }
-            });
-            await prisma.statusHistory.create({
-              data: {
-                complaintId: complaint.id,
-                fromStatus: null,
-                toStatus: newStatus,
-                note: shouldReview ? "Complaint registered and queued for administrative review." : `Complaint classified as ${analysisResult.categoryName} and assigned to ${routingResult.departmentName}.`,
-                isCitizenVisible: true,
-                changedById: req.user.id
-              }
-            });
-            await logAuditEvent(prisma, {
-              complaintId: complaint.id,
-              actorId: req.user.id,
-              action: "CLASSIFY_AND_ROUTE",
-              details: {
-                category: analysisResult.categoryName,
-                department: routingResult.departmentName,
-                status: newStatus,
-                needsReview: shouldReview,
-                confidence: analysisResult.confidence,
-                provider: analysisResult.provider
-              }
-            });
-            res.status(201).json({
-              success: true,
-              data: formatComplaint(updated, req.user.role),
-              message: "Complaint submitted and categorized successfully."
-            });
-            return;
-          } catch (err) {
-            console.error("[Analysis Error during submission]", err);
-            const fallback = await prisma.complaint.update({
-              where: { id: complaint.id },
-              data: {
-                analysisState: "FAILED",
-                reviewState: "REQUIRED"
-              },
-              include: {
-                serviceArea: true,
-                category: true,
-                department: true,
-                attachments: true,
-                citizen: { select: { id: true, name: true, email: true } }
-              }
-            });
-            res.status(201).json({
-              success: true,
-              data: formatComplaint(fallback, req.user.role),
-              message: "Complaint submitted. Automated analysis failed; queued for manual review."
+            finalAttachments.push({
+              originalFilename: file.originalname,
+              storageFilename: file.filename,
+              mimeType: file.mimetype,
+              fileSize: file.size
             });
           }
-        } catch (err) {
-          console.error("[Complaint Submission Error]", err);
-          res.status(500).json({ success: false, error: "Failed to process complaint submission." });
         }
       }
-    );
-    router3.get("/", authenticateToken, async (req, res) => {
-      try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
-        }
-        const filterResult = ComplaintFilterSchema.safeParse(req.query);
-        if (!filterResult.success) {
-          res.status(400).json({ success: false, error: filterResult.error.errors[0]?.message || "Invalid filter parameters" });
-          return;
-        }
-        const filters = filterResult.data;
-        const where = {};
-        if (req.user.role === "CITIZEN") {
-          where.citizenId = req.user.id;
-        } else if (req.user.role === "STAFF") {
-          if (!req.user.departmentId) {
-            res.status(403).json({ success: false, error: "Staff account has not been assigned to a department yet." });
-            return;
-          }
-          where.departmentId = req.user.departmentId;
-        }
-        if (req.user.role === "ADMIN" && filters.departmentId) {
-          if (filters.departmentId === "UNASSIGNED") {
-            where.departmentId = null;
-          } else {
-            where.departmentId = filters.departmentId;
+      const complaint = await prisma.complaint.create({
+        data: {
+          reference,
+          title,
+          description,
+          address,
+          serviceAreaId,
+          citizenId: req.user.id,
+          firstNoticedDate: firstNoticedDate ? new Date(firstNoticedDate) : null,
+          status: "SUBMITTED",
+          analysisState: "PENDING",
+          reviewState: "NOT_REQUIRED",
+          attachments: {
+            create: finalAttachments
           }
         }
-        if (filters.categoryId) {
-          where.categoryId = filters.categoryId;
-        }
-        if (filters.serviceAreaId) {
-          where.serviceAreaId = filters.serviceAreaId;
-        }
-        if (filters.status) {
-          if (filters.status === "ACTIVE") {
-            where.status = { in: ["SUBMITTED", "ASSIGNED", "IN_PROGRESS"] };
-          } else if (filters.status !== "ALL") {
-            where.status = filters.status;
-          }
-        }
-        if (filters.reviewState && filters.reviewState !== "ALL") {
-          where.reviewState = filters.reviewState;
-        }
-        if (filters.dateFrom || filters.dateTo) {
-          where.createdAt = {};
-          if (filters.dateFrom) where.createdAt.gte = new Date(filters.dateFrom);
-          if (filters.dateTo) {
-            const toDate = new Date(filters.dateTo);
-            toDate.setHours(23, 59, 59, 999);
-            where.createdAt.lte = toDate;
-          }
-        }
-        if (filters.search && filters.search.trim().length > 0) {
-          const q = filters.search.trim();
-          where.OR = [
-            { reference: { contains: q, mode: "insensitive" } },
-            { title: { contains: q, mode: "insensitive" } },
-            { description: { contains: q, mode: "insensitive" } },
-            { address: { contains: q, mode: "insensitive" } }
-          ];
-        }
-        const rawComplaints = await prisma.complaint.findMany({
-          where,
-          include: {
-            serviceArea: true,
-            category: true,
-            department: true,
-            attachments: true,
-            citizen: { select: { id: true, name: true, email: true } }
-          }
-        });
-        const formattedList = rawComplaints.map((c) => formatComplaint(c, req.user?.role));
-        let filteredList = formattedList.filter((item) => {
-          if (filters.minCoreScore !== void 0 && item.scores.coreScore < filters.minCoreScore) {
-            return false;
-          }
-          if (filters.starRed === "true" && !item.scores.stars.redPriority) return false;
-          if (filters.starPink === "true" && !item.scores.stars.pinkDuration) return false;
-          if (filters.starOrange === "true" && !item.scores.stars.orangeUrgency) return false;
-          if (filters.starGreen === "true" && !item.scores.stars.greenFeasibility) return false;
-          return true;
-        });
-        filteredList.sort((a, b) => {
-          if (filters.sortBy === "coreScore") {
-            const diff = b.scores.coreScore - a.scores.coreScore;
-            if (Math.abs(diff) > 1e-3) return filters.sortOrder === "asc" ? -diff : diff;
-            const urgDiff = b.scores.effectiveUrgency - a.scores.effectiveUrgency;
-            if (Math.abs(urgDiff) > 1e-3) return urgDiff;
-            const timeDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-            if (timeDiff !== 0) return timeDiff;
-            return a.id.localeCompare(b.id);
-          } else if (filters.sortBy === "urgency") {
-            const diff = b.scores.effectiveUrgency - a.scores.effectiveUrgency;
-            return filters.sortOrder === "asc" ? -diff : diff;
-          } else if (filters.sortBy === "priority") {
-            const diff = b.scores.effectivePriority - a.scores.effectivePriority;
-            return filters.sortOrder === "asc" ? -diff : diff;
-          } else if (filters.sortBy === "duration") {
-            const diff = b.scores.durationScore - a.scores.durationScore;
-            return filters.sortOrder === "asc" ? -diff : diff;
-          } else if (filters.sortBy === "feasibility") {
-            const diff = b.scores.effectiveFeasibility - a.scores.effectiveFeasibility;
-            return filters.sortOrder === "asc" ? -diff : diff;
-          } else if (filters.sortBy === "newest") {
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          } else if (filters.sortBy === "oldest") {
-            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          }
-          return 0;
-        });
-        const total = filteredList.length;
-        const page = filters.page;
-        const limit = filters.limit;
-        const startIndex = (page - 1) * limit;
-        const paginated = filteredList.slice(startIndex, startIndex + limit);
-        res.json({
-          success: true,
-          data: {
-            items: paginated,
-            pagination: {
-              page,
-              limit,
-              total,
-              totalPages: Math.ceil(total / limit) || 1
-            }
-          }
-        });
-      } catch (err) {
-        console.error("[List Complaints Error]", err);
-        res.status(500).json({ success: false, error: "Failed to retrieve complaints." });
+      });
+      await logAuditEvent(prisma, {
+        complaintId: complaint.id,
+        actorId: req.user.id,
+        action: "SUBMIT_COMPLAINT",
+        details: { reference, title, serviceArea: serviceArea.name, filesCount: files.length }
+      });
+      if (finalAttachments.length > 0) {
+        await markUploadGrantsUsed(
+          finalAttachments.map((a) => a.storageFilename),
+          req.user.id,
+          prisma
+        );
       }
-    });
-    router3.get("/:id", authenticateToken, async (req, res) => {
+      let analysisResult;
       try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
-        }
-        const { id } = req.params;
-        const complaint = await prisma.complaint.findUnique({
-          where: { id },
-          include: {
-            serviceArea: true,
-            category: true,
-            department: true,
-            attachments: true,
-            citizen: { select: { id: true, name: true, email: true } },
-            statusHistory: {
-              include: { changedBy: { select: { id: true, name: true, role: true } } },
-              orderBy: { createdAt: "desc" }
-            },
-            auditEvents: {
-              include: { actor: { select: { id: true, name: true, role: true } } },
-              orderBy: { createdAt: "desc" }
-            }
-          }
+        await prisma.complaint.update({
+          where: { id: complaint.id },
+          data: { analysisState: "PROCESSING" }
         });
-        if (!complaint) {
-          res.status(404).json({ success: false, error: "Complaint not found." });
-          return;
-        }
-        if (req.user.role === "CITIZEN" && complaint.citizenId !== req.user.id) {
-          res.status(403).json({ success: false, error: "Access denied: You can only view your own submitted complaints." });
-          return;
-        }
-        if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
-          res.status(403).json({ success: false, error: "Access denied: You can only view complaints assigned to your department." });
-          return;
-        }
-        res.json({
-          success: true,
-          data: formatComplaint(complaint, req.user.role)
+        analysisResult = await classifyComplaint(title, description);
+        const category = await prisma.category.findUnique({
+          where: { code: analysisResult.categoryCode }
         });
-      } catch (err) {
-        console.error("[Get Complaint Detail Error]", err);
-        res.status(500).json({ success: false, error: "Failed to fetch complaint details." });
-      }
-    });
-    router3.get("/:id/attachments/:attachmentId", authenticateToken, async (req, res) => {
-      try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
-        }
-        const { id, attachmentId } = req.params;
-        const complaint = await prisma.complaint.findUnique({ where: { id } });
-        if (!complaint) {
-          res.status(404).json({ success: false, error: "Complaint not found." });
-          return;
-        }
-        if (req.user.role === "CITIZEN" && complaint.citizenId !== req.user.id) {
-          res.status(403).json({ success: false, error: "Access denied." });
-          return;
-        }
-        if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
-          res.status(403).json({ success: false, error: "Access denied." });
-          return;
-        }
-        const attachment = await prisma.attachment.findFirst({
-          where: { id: attachmentId, complaintId: id }
-        });
-        if (!attachment) {
-          res.status(404).json({ success: false, error: "Attachment not found." });
-          return;
-        }
-        const resolved = await resolveAttachment(attachment.storageFilename);
-        if (resolved.type === "missing") {
-          res.status(404).json({ success: false, error: "Attachment file not found." });
-          return;
-        }
-        res.setHeader("Content-Type", attachment.mimeType || resolved.mimeType || "application/octet-stream");
-        res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(attachment.originalFilename)}"`);
-        res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
-        resolved.stream.pipe(res);
-      } catch (err) {
-        console.error("[Attachment Serve Error]", err);
-        res.status(500).json({ success: false, error: "Failed to retrieve attachment file." });
-      }
-    });
-    router3.patch("/:id/status", authenticateToken, requireRole("STAFF", "ADMIN"), async (req, res) => {
-      try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
-        }
-        const { id } = req.params;
-        const parsed = StatusUpdateSchema.safeParse(req.body);
-        if (!parsed.success) {
-          res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid status update data" });
-          return;
-        }
-        const { toStatus, note, isCitizenVisible, explanation } = parsed.data;
-        const complaint = await prisma.complaint.findUnique({
-          where: { id },
-          include: { department: true }
-        });
-        if (!complaint) {
-          res.status(404).json({ success: false, error: "Complaint not found." });
-          return;
-        }
-        if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
-          res.status(403).json({ success: false, error: "Access denied: You can only update complaints assigned to your department." });
-          return;
-        }
-        const currentStatus = complaint.status;
-        const allowed = STATUS_TRANSITIONS[currentStatus] || [];
-        if (!allowed.includes(toStatus)) {
-          res.status(400).json({
-            success: false,
-            error: `Invalid transition from "${currentStatus}" to "${toStatus}". Allowed transitions: ${allowed.join(", ")}`
-          });
-          return;
-        }
-        if (currentStatus === "RESOLVED" && toStatus === "ASSIGNED") {
-          if (req.user.role !== "ADMIN") {
-            res.status(403).json({ success: false, error: "Only administrators can reopen a resolved complaint." });
-            return;
-          }
-          if (!explanation || explanation.trim().length < 5) {
-            res.status(400).json({ success: false, error: "An explanation is required to reopen a resolved complaint." });
-            return;
-          }
-        }
-        if (currentStatus === "IN_PROGRESS" && toStatus === "ASSIGNED") {
-          if (!explanation || explanation.trim().length < 5) {
-            res.status(400).json({ success: false, error: "An explanation is required when moving a complaint back to Assigned." });
-            return;
-          }
-        }
-        const updateData = {
-          status: toStatus
-        };
-        if (toStatus === "RESOLVED") {
-          updateData.resolvedAt = /* @__PURE__ */ new Date();
-          updateData.resolutionNote = note || "Issue addressed and resolved by department staff.";
-        } else if (currentStatus === "RESOLVED") {
-          updateData.resolvedAt = null;
-          updateData.resolutionNote = null;
-        }
-        const updated = await prisma.complaint.update({
-          where: { id },
-          data: updateData,
-          include: {
-            serviceArea: true,
-            category: true,
-            department: true,
-            attachments: true,
-            citizen: { select: { id: true, name: true, email: true } }
-          }
-        });
-        const statusNote = note || explanation || `Status updated from ${currentStatus} to ${toStatus}.`;
-        await prisma.statusHistory.create({
-          data: {
-            complaintId: id,
-            fromStatus: currentStatus,
-            toStatus,
-            note: statusNote,
-            isCitizenVisible,
-            changedById: req.user.id
-          }
-        });
-        await logAuditEvent(prisma, {
-          complaintId: id,
-          actorId: req.user.id,
-          action: "STATUS_CHANGE",
-          details: {
-            from: currentStatus,
-            to: toStatus,
-            note: statusNote,
-            isCitizenVisible
-          }
-        });
-        res.json({
-          success: true,
-          data: formatComplaint(updated, req.user.role),
-          message: `Status successfully updated to ${toStatus}.`
-        });
-      } catch (err) {
-        console.error("[Status Update Error]", err);
-        res.status(500).json({ success: false, error: "Failed to update complaint status." });
-      }
-    });
-    router3.post("/:id/flag-review", authenticateToken, requireRole("STAFF"), async (req, res) => {
-      try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
-        }
-        const { id } = req.params;
-        const parsed = FlagForReviewSchema.safeParse(req.body);
-        if (!parsed.success) {
-          res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Reason is required" });
-          return;
-        }
-        const complaint = await prisma.complaint.findUnique({ where: { id } });
-        if (!complaint) {
-          res.status(404).json({ success: false, error: "Complaint not found." });
-          return;
-        }
-        if (complaint.departmentId !== req.user.departmentId) {
-          res.status(403).json({ success: false, error: "Access denied: You can only flag complaints assigned to your department." });
-          return;
-        }
-        const updated = await prisma.complaint.update({
-          where: { id },
-          data: {
-            reviewState: "REQUIRED"
-          },
-          include: {
-            serviceArea: true,
-            category: true,
-            department: true,
-            attachments: true,
-            citizen: { select: { id: true, name: true, email: true } }
-          }
-        });
-        await prisma.statusHistory.create({
-          data: {
-            complaintId: id,
-            fromStatus: complaint.status,
-            toStatus: complaint.status,
-            note: `Flagged for administrative review: ${parsed.data.reason}`,
-            isCitizenVisible: false,
-            // Internal note
-            changedById: req.user.id
-          }
-        });
-        await logAuditEvent(prisma, {
-          complaintId: id,
-          actorId: req.user.id,
-          action: "FLAG_FOR_REVIEW",
-          details: { reason: parsed.data.reason }
-        });
-        res.json({
-          success: true,
-          data: formatComplaint(updated, req.user.role),
-          message: "Complaint flagged for administrator review."
-        });
-      } catch (err) {
-        console.error("[Flag For Review Error]", err);
-        res.status(500).json({ success: false, error: "Failed to flag complaint for review." });
-      }
-    });
-    router3.post("/:id/manual-review", authenticateToken, requireRole("ADMIN"), async (req, res) => {
-      try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
-        }
-        const { id } = req.params;
-        const parsed = ManualReviewDecisionSchema.safeParse(req.body);
-        if (!parsed.success) {
-          res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid review data" });
-          return;
-        }
-        const { categoryId, departmentId, notes } = parsed.data;
-        const [category, department, complaint] = await Promise.all([
-          prisma.category.findUnique({ where: { id: categoryId } }),
-          prisma.department.findUnique({ where: { id: departmentId } }),
-          prisma.complaint.findUnique({ where: { id } })
-        ]);
-        if (!complaint) {
-          res.status(404).json({ success: false, error: "Complaint not found." });
-          return;
-        }
-        if (!category) {
-          res.status(400).json({ success: false, error: "Category not found." });
-          return;
-        }
-        if (!department) {
-          res.status(400).json({ success: false, error: "Department not found." });
-          return;
-        }
-        const updated = await prisma.complaint.update({
-          where: { id },
-          data: {
-            categoryId,
-            departmentId,
-            reviewState: "APPROVED",
-            status: "ASSIGNED"
-            // Safe assignment moves to ASSIGNED
-          },
-          include: {
-            serviceArea: true,
-            category: true,
-            department: true,
-            attachments: true,
-            citizen: { select: { id: true, name: true, email: true } }
-          }
-        });
-        await prisma.statusHistory.create({
-          data: {
-            complaintId: id,
-            fromStatus: complaint.status,
-            toStatus: "ASSIGNED",
-            note: `Administrative review completed: Category set to "${category.name}", assigned to "${department.name}". Notes: ${notes}`,
-            isCitizenVisible: true,
-            changedById: req.user.id
-          }
-        });
-        await logAuditEvent(prisma, {
-          complaintId: id,
-          actorId: req.user.id,
-          action: "MANUAL_REVIEW_DECISION",
-          details: {
-            categoryId,
-            categoryName: category.name,
-            departmentId,
-            departmentName: department.name,
-            notes
-          }
-        });
-        res.json({
-          success: true,
-          data: formatComplaint(updated, req.user.role),
-          message: "Administrative review decision applied successfully."
-        });
-      } catch (err) {
-        console.error("[Manual Review Error]", err);
-        res.status(500).json({ success: false, error: "Failed to record manual review decision." });
-      }
-    });
-    router3.post("/:id/override-scores", authenticateToken, requireRole("ADMIN"), async (req, res) => {
-      try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
-        }
-        const { id } = req.params;
-        const parsed = ScoreOverrideSchema.safeParse(req.body);
-        if (!parsed.success) {
-          res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid override data" });
-          return;
-        }
-        const { priority, urgency, feasibility, reason } = parsed.data;
-        const complaint = await prisma.complaint.findUnique({ where: { id } });
-        if (!complaint) {
-          res.status(404).json({ success: false, error: "Complaint not found." });
-          return;
-        }
-        const updated = await prisma.complaint.update({
-          where: { id },
-          data: {
-            overridePriority: priority !== void 0 ? priority : complaint.overridePriority,
-            overrideUrgency: urgency !== void 0 ? urgency : complaint.overrideUrgency,
-            overrideFeasibility: feasibility !== void 0 ? feasibility : complaint.overrideFeasibility,
-            overrideReason: reason,
-            overriddenById: req.user.id,
-            overriddenAt: /* @__PURE__ */ new Date()
-          },
-          include: {
-            serviceArea: true,
-            category: true,
-            department: true,
-            attachments: true,
-            citizen: { select: { id: true, name: true, email: true } }
-          }
-        });
-        await prisma.statusHistory.create({
-          data: {
-            complaintId: id,
-            fromStatus: complaint.status,
-            toStatus: complaint.status,
-            note: `Administrative score override applied: ${reason}`,
-            isCitizenVisible: false,
-            changedById: req.user.id
-          }
-        });
-        await logAuditEvent(prisma, {
-          complaintId: id,
-          actorId: req.user.id,
-          action: "SCORE_OVERRIDE",
-          details: {
-            previous: {
-              priority: complaint.overridePriority ?? complaint.priority,
-              urgency: complaint.overrideUrgency ?? complaint.urgency,
-              feasibility: complaint.overrideFeasibility ?? complaint.feasibility
-            },
-            overriddenTo: { priority, urgency, feasibility },
-            reason
-          }
-        });
-        res.json({
-          success: true,
-          data: formatComplaint(updated, req.user.role),
-          message: "Scores overridden successfully."
-        });
-      } catch (err) {
-        console.error("[Score Override Error]", err);
-        res.status(500).json({ success: false, error: "Failed to override scores." });
-      }
-    });
-    router3.post("/:id/retry-analysis", authenticateToken, requireRole("STAFF", "ADMIN"), async (req, res) => {
-      try {
-        const { id } = req.params;
-        const complaint = await prisma.complaint.findUnique({ where: { id } });
-        if (!complaint) {
-          res.status(404).json({ success: false, error: "Complaint not found." });
-          return;
-        }
-        if (req.user?.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
-          res.status(403).json({
-            success: false,
-            error: "Access denied: You can only retry analysis for complaints assigned to your department."
-          });
-          return;
-        }
-        const analysisResult = await classifyComplaint(complaint.title, complaint.description);
-        const category = await prisma.category.findUnique({ where: { code: analysisResult.categoryCode } });
         const categoryId = category ? category.id : null;
-        const routingResult = await routeComplaint(prisma, categoryId, complaint.serviceAreaId);
+        const routingResult = await routeComplaint(prisma, categoryId, serviceAreaId);
         const shouldReview = analysisResult.needsReview || routingResult.requiresReview;
+        const newStatus = routingResult.success && !shouldReview ? "ASSIGNED" : "SUBMITTED";
         const updated = await prisma.complaint.update({
-          where: { id },
+          where: { id: complaint.id },
           data: {
             categoryId,
-            departmentId: routingResult.departmentId || complaint.departmentId,
+            departmentId: routingResult.departmentId,
+            status: newStatus,
             analysisState: "COMPLETED",
             reviewState: shouldReview ? "REQUIRED" : "NOT_REQUIRED",
             analysisProvider: analysisResult.provider,
@@ -2325,310 +1604,925 @@ var init_complaints = __esm({
             citizen: { select: { id: true, name: true, email: true } }
           }
         });
-        res.json({
-          success: true,
-          data: formatComplaint(updated, req.user?.role),
-          message: "Analysis rerun completed successfully."
+        await prisma.statusHistory.create({
+          data: {
+            complaintId: complaint.id,
+            fromStatus: null,
+            toStatus: newStatus,
+            note: shouldReview ? "Complaint registered and queued for administrative review." : `Complaint classified as ${analysisResult.categoryName} and assigned to ${routingResult.departmentName}.`,
+            isCitizenVisible: true,
+            changedById: req.user.id
+          }
         });
+        await logAuditEvent(prisma, {
+          complaintId: complaint.id,
+          actorId: req.user.id,
+          action: "CLASSIFY_AND_ROUTE",
+          details: {
+            category: analysisResult.categoryName,
+            department: routingResult.departmentName,
+            status: newStatus,
+            needsReview: shouldReview,
+            confidence: analysisResult.confidence,
+            provider: analysisResult.provider
+          }
+        });
+        res.status(201).json({
+          success: true,
+          data: formatComplaint(updated, req.user.role),
+          message: "Complaint submitted and categorized successfully."
+        });
+        return;
       } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to rerun analysis." });
+        console.error("[Analysis Error during submission]", err);
+        const fallback = await prisma.complaint.update({
+          where: { id: complaint.id },
+          data: {
+            analysisState: "FAILED",
+            reviewState: "REQUIRED"
+          },
+          include: {
+            serviceArea: true,
+            category: true,
+            department: true,
+            attachments: true,
+            citizen: { select: { id: true, name: true, email: true } }
+          }
+        });
+        res.status(201).json({
+          success: true,
+          data: formatComplaint(fallback, req.user.role),
+          message: "Complaint submitted. Automated analysis failed; queued for manual review."
+        });
+      }
+    } catch (err) {
+      console.error("[Complaint Submission Error]", err);
+      res.status(500).json({ success: false, error: "Failed to process complaint submission." });
+    }
+  }
+);
+router3.get("/", authenticateToken, async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const filterResult = ComplaintFilterSchema.safeParse(req.query);
+    if (!filterResult.success) {
+      res.status(400).json({ success: false, error: filterResult.error.errors[0]?.message || "Invalid filter parameters" });
+      return;
+    }
+    const filters = filterResult.data;
+    const where = {};
+    if (req.user.role === "CITIZEN") {
+      where.citizenId = req.user.id;
+    } else if (req.user.role === "STAFF") {
+      if (!req.user.departmentId) {
+        res.status(403).json({ success: false, error: "Staff account has not been assigned to a department yet." });
+        return;
+      }
+      where.departmentId = req.user.departmentId;
+    }
+    if (req.user.role === "ADMIN" && filters.departmentId) {
+      if (filters.departmentId === "UNASSIGNED") {
+        where.departmentId = null;
+      } else {
+        where.departmentId = filters.departmentId;
+      }
+    }
+    if (filters.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
+    if (filters.serviceAreaId) {
+      where.serviceAreaId = filters.serviceAreaId;
+    }
+    if (filters.status) {
+      if (filters.status === "ACTIVE") {
+        where.status = { in: ["SUBMITTED", "ASSIGNED", "IN_PROGRESS"] };
+      } else if (filters.status !== "ALL") {
+        where.status = filters.status;
+      }
+    }
+    if (filters.reviewState && filters.reviewState !== "ALL") {
+      where.reviewState = filters.reviewState;
+    }
+    if (filters.dateFrom || filters.dateTo) {
+      where.createdAt = {};
+      if (filters.dateFrom) where.createdAt.gte = new Date(filters.dateFrom);
+      if (filters.dateTo) {
+        const toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = toDate;
+      }
+    }
+    if (filters.search && filters.search.trim().length > 0) {
+      const q = filters.search.trim();
+      where.OR = [
+        { reference: { contains: q, mode: "insensitive" } },
+        { title: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { address: { contains: q, mode: "insensitive" } }
+      ];
+    }
+    const rawComplaints = await prisma.complaint.findMany({
+      where,
+      include: {
+        serviceArea: true,
+        category: true,
+        department: true,
+        attachments: true,
+        citizen: { select: { id: true, name: true, email: true } }
       }
     });
-    complaints_default = router3;
+    const formattedList = rawComplaints.map((c) => formatComplaint(c, req.user?.role));
+    let filteredList = formattedList.filter((item) => {
+      if (filters.minCoreScore !== void 0 && item.scores.coreScore < filters.minCoreScore) {
+        return false;
+      }
+      if (filters.starRed === "true" && !item.scores.stars.redPriority) return false;
+      if (filters.starPink === "true" && !item.scores.stars.pinkDuration) return false;
+      if (filters.starOrange === "true" && !item.scores.stars.orangeUrgency) return false;
+      if (filters.starGreen === "true" && !item.scores.stars.greenFeasibility) return false;
+      return true;
+    });
+    filteredList.sort((a, b) => {
+      if (filters.sortBy === "coreScore") {
+        const diff = b.scores.coreScore - a.scores.coreScore;
+        if (Math.abs(diff) > 1e-3) return filters.sortOrder === "asc" ? -diff : diff;
+        const urgDiff = b.scores.effectiveUrgency - a.scores.effectiveUrgency;
+        if (Math.abs(urgDiff) > 1e-3) return urgDiff;
+        const timeDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return a.id.localeCompare(b.id);
+      } else if (filters.sortBy === "urgency") {
+        const diff = b.scores.effectiveUrgency - a.scores.effectiveUrgency;
+        return filters.sortOrder === "asc" ? -diff : diff;
+      } else if (filters.sortBy === "priority") {
+        const diff = b.scores.effectivePriority - a.scores.effectivePriority;
+        return filters.sortOrder === "asc" ? -diff : diff;
+      } else if (filters.sortBy === "duration") {
+        const diff = b.scores.durationScore - a.scores.durationScore;
+        return filters.sortOrder === "asc" ? -diff : diff;
+      } else if (filters.sortBy === "feasibility") {
+        const diff = b.scores.effectiveFeasibility - a.scores.effectiveFeasibility;
+        return filters.sortOrder === "asc" ? -diff : diff;
+      } else if (filters.sortBy === "newest") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else if (filters.sortBy === "oldest") {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return 0;
+    });
+    const total = filteredList.length;
+    const page = filters.page;
+    const limit = filters.limit;
+    const startIndex = (page - 1) * limit;
+    const paginated = filteredList.slice(startIndex, startIndex + limit);
+    res.json({
+      success: true,
+      data: {
+        items: paginated,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit) || 1
+        }
+      }
+    });
+  } catch (err) {
+    console.error("[List Complaints Error]", err);
+    res.status(500).json({ success: false, error: "Failed to retrieve complaints." });
   }
 });
+router3.get("/:id", authenticateToken, async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const { id } = req.params;
+    const complaint = await prisma.complaint.findUnique({
+      where: { id },
+      include: {
+        serviceArea: true,
+        category: true,
+        department: true,
+        attachments: true,
+        citizen: { select: { id: true, name: true, email: true } },
+        statusHistory: {
+          include: { changedBy: { select: { id: true, name: true, role: true } } },
+          orderBy: { createdAt: "desc" }
+        },
+        auditEvents: {
+          include: { actor: { select: { id: true, name: true, role: true } } },
+          orderBy: { createdAt: "desc" }
+        }
+      }
+    });
+    if (!complaint) {
+      res.status(404).json({ success: false, error: "Complaint not found." });
+      return;
+    }
+    if (req.user.role === "CITIZEN" && complaint.citizenId !== req.user.id) {
+      res.status(403).json({ success: false, error: "Access denied: You can only view your own submitted complaints." });
+      return;
+    }
+    if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
+      res.status(403).json({ success: false, error: "Access denied: You can only view complaints assigned to your department." });
+      return;
+    }
+    res.json({
+      success: true,
+      data: formatComplaint(complaint, req.user.role)
+    });
+  } catch (err) {
+    console.error("[Get Complaint Detail Error]", err);
+    res.status(500).json({ success: false, error: "Failed to fetch complaint details." });
+  }
+});
+router3.get("/:id/attachments/:attachmentId", authenticateToken, async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const { id, attachmentId } = req.params;
+    const complaint = await prisma.complaint.findUnique({ where: { id } });
+    if (!complaint) {
+      res.status(404).json({ success: false, error: "Complaint not found." });
+      return;
+    }
+    if (req.user.role === "CITIZEN" && complaint.citizenId !== req.user.id) {
+      res.status(403).json({ success: false, error: "Access denied." });
+      return;
+    }
+    if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
+      res.status(403).json({ success: false, error: "Access denied." });
+      return;
+    }
+    const attachment = await prisma.attachment.findFirst({
+      where: { id: attachmentId, complaintId: id }
+    });
+    if (!attachment) {
+      res.status(404).json({ success: false, error: "Attachment not found." });
+      return;
+    }
+    const resolved = await resolveAttachment(attachment.storageFilename);
+    if (resolved.type === "missing") {
+      res.status(404).json({ success: false, error: "Attachment file not found." });
+      return;
+    }
+    res.setHeader("Content-Type", attachment.mimeType || resolved.mimeType || "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(attachment.originalFilename)}"`);
+    res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
+    resolved.stream.pipe(res);
+  } catch (err) {
+    console.error("[Attachment Serve Error]", err);
+    res.status(500).json({ success: false, error: "Failed to retrieve attachment file." });
+  }
+});
+router3.patch("/:id/status", authenticateToken, requireRole("STAFF", "ADMIN"), async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const { id } = req.params;
+    const parsed = StatusUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid status update data" });
+      return;
+    }
+    const { toStatus, note, isCitizenVisible, explanation } = parsed.data;
+    const complaint = await prisma.complaint.findUnique({
+      where: { id },
+      include: { department: true }
+    });
+    if (!complaint) {
+      res.status(404).json({ success: false, error: "Complaint not found." });
+      return;
+    }
+    if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
+      res.status(403).json({ success: false, error: "Access denied: You can only update complaints assigned to your department." });
+      return;
+    }
+    const currentStatus = complaint.status;
+    const allowed = STATUS_TRANSITIONS[currentStatus] || [];
+    if (!allowed.includes(toStatus)) {
+      res.status(400).json({
+        success: false,
+        error: `Invalid transition from "${currentStatus}" to "${toStatus}". Allowed transitions: ${allowed.join(", ")}`
+      });
+      return;
+    }
+    if (currentStatus === "RESOLVED" && toStatus === "ASSIGNED") {
+      if (req.user.role !== "ADMIN") {
+        res.status(403).json({ success: false, error: "Only administrators can reopen a resolved complaint." });
+        return;
+      }
+      if (!explanation || explanation.trim().length < 5) {
+        res.status(400).json({ success: false, error: "An explanation is required to reopen a resolved complaint." });
+        return;
+      }
+    }
+    if (currentStatus === "IN_PROGRESS" && toStatus === "ASSIGNED") {
+      if (!explanation || explanation.trim().length < 5) {
+        res.status(400).json({ success: false, error: "An explanation is required when moving a complaint back to Assigned." });
+        return;
+      }
+    }
+    const updateData = {
+      status: toStatus
+    };
+    if (toStatus === "RESOLVED") {
+      updateData.resolvedAt = /* @__PURE__ */ new Date();
+      updateData.resolutionNote = note || "Issue addressed and resolved by department staff.";
+    } else if (currentStatus === "RESOLVED") {
+      updateData.resolvedAt = null;
+      updateData.resolutionNote = null;
+    }
+    const updated = await prisma.complaint.update({
+      where: { id },
+      data: updateData,
+      include: {
+        serviceArea: true,
+        category: true,
+        department: true,
+        attachments: true,
+        citizen: { select: { id: true, name: true, email: true } }
+      }
+    });
+    const statusNote = note || explanation || `Status updated from ${currentStatus} to ${toStatus}.`;
+    await prisma.statusHistory.create({
+      data: {
+        complaintId: id,
+        fromStatus: currentStatus,
+        toStatus,
+        note: statusNote,
+        isCitizenVisible,
+        changedById: req.user.id
+      }
+    });
+    await logAuditEvent(prisma, {
+      complaintId: id,
+      actorId: req.user.id,
+      action: "STATUS_CHANGE",
+      details: {
+        from: currentStatus,
+        to: toStatus,
+        note: statusNote,
+        isCitizenVisible
+      }
+    });
+    res.json({
+      success: true,
+      data: formatComplaint(updated, req.user.role),
+      message: `Status successfully updated to ${toStatus}.`
+    });
+  } catch (err) {
+    console.error("[Status Update Error]", err);
+    res.status(500).json({ success: false, error: "Failed to update complaint status." });
+  }
+});
+router3.post("/:id/flag-review", authenticateToken, requireRole("STAFF"), async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const { id } = req.params;
+    const parsed = FlagForReviewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Reason is required" });
+      return;
+    }
+    const complaint = await prisma.complaint.findUnique({ where: { id } });
+    if (!complaint) {
+      res.status(404).json({ success: false, error: "Complaint not found." });
+      return;
+    }
+    if (complaint.departmentId !== req.user.departmentId) {
+      res.status(403).json({ success: false, error: "Access denied: You can only flag complaints assigned to your department." });
+      return;
+    }
+    const updated = await prisma.complaint.update({
+      where: { id },
+      data: {
+        reviewState: "REQUIRED"
+      },
+      include: {
+        serviceArea: true,
+        category: true,
+        department: true,
+        attachments: true,
+        citizen: { select: { id: true, name: true, email: true } }
+      }
+    });
+    await prisma.statusHistory.create({
+      data: {
+        complaintId: id,
+        fromStatus: complaint.status,
+        toStatus: complaint.status,
+        note: `Flagged for administrative review: ${parsed.data.reason}`,
+        isCitizenVisible: false,
+        // Internal note
+        changedById: req.user.id
+      }
+    });
+    await logAuditEvent(prisma, {
+      complaintId: id,
+      actorId: req.user.id,
+      action: "FLAG_FOR_REVIEW",
+      details: { reason: parsed.data.reason }
+    });
+    res.json({
+      success: true,
+      data: formatComplaint(updated, req.user.role),
+      message: "Complaint flagged for administrator review."
+    });
+  } catch (err) {
+    console.error("[Flag For Review Error]", err);
+    res.status(500).json({ success: false, error: "Failed to flag complaint for review." });
+  }
+});
+router3.post("/:id/manual-review", authenticateToken, requireRole("ADMIN"), async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const { id } = req.params;
+    const parsed = ManualReviewDecisionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid review data" });
+      return;
+    }
+    const { categoryId, departmentId, notes } = parsed.data;
+    const [category, department, complaint] = await Promise.all([
+      prisma.category.findUnique({ where: { id: categoryId } }),
+      prisma.department.findUnique({ where: { id: departmentId } }),
+      prisma.complaint.findUnique({ where: { id } })
+    ]);
+    if (!complaint) {
+      res.status(404).json({ success: false, error: "Complaint not found." });
+      return;
+    }
+    if (!category) {
+      res.status(400).json({ success: false, error: "Category not found." });
+      return;
+    }
+    if (!department) {
+      res.status(400).json({ success: false, error: "Department not found." });
+      return;
+    }
+    const updated = await prisma.complaint.update({
+      where: { id },
+      data: {
+        categoryId,
+        departmentId,
+        reviewState: "APPROVED",
+        status: "ASSIGNED"
+        // Safe assignment moves to ASSIGNED
+      },
+      include: {
+        serviceArea: true,
+        category: true,
+        department: true,
+        attachments: true,
+        citizen: { select: { id: true, name: true, email: true } }
+      }
+    });
+    await prisma.statusHistory.create({
+      data: {
+        complaintId: id,
+        fromStatus: complaint.status,
+        toStatus: "ASSIGNED",
+        note: `Administrative review completed: Category set to "${category.name}", assigned to "${department.name}". Notes: ${notes}`,
+        isCitizenVisible: true,
+        changedById: req.user.id
+      }
+    });
+    await logAuditEvent(prisma, {
+      complaintId: id,
+      actorId: req.user.id,
+      action: "MANUAL_REVIEW_DECISION",
+      details: {
+        categoryId,
+        categoryName: category.name,
+        departmentId,
+        departmentName: department.name,
+        notes
+      }
+    });
+    res.json({
+      success: true,
+      data: formatComplaint(updated, req.user.role),
+      message: "Administrative review decision applied successfully."
+    });
+  } catch (err) {
+    console.error("[Manual Review Error]", err);
+    res.status(500).json({ success: false, error: "Failed to record manual review decision." });
+  }
+});
+router3.post("/:id/override-scores", authenticateToken, requireRole("ADMIN"), async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const { id } = req.params;
+    const parsed = ScoreOverrideSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid override data" });
+      return;
+    }
+    const { priority, urgency, feasibility, reason } = parsed.data;
+    const complaint = await prisma.complaint.findUnique({ where: { id } });
+    if (!complaint) {
+      res.status(404).json({ success: false, error: "Complaint not found." });
+      return;
+    }
+    const updated = await prisma.complaint.update({
+      where: { id },
+      data: {
+        overridePriority: priority !== void 0 ? priority : complaint.overridePriority,
+        overrideUrgency: urgency !== void 0 ? urgency : complaint.overrideUrgency,
+        overrideFeasibility: feasibility !== void 0 ? feasibility : complaint.overrideFeasibility,
+        overrideReason: reason,
+        overriddenById: req.user.id,
+        overriddenAt: /* @__PURE__ */ new Date()
+      },
+      include: {
+        serviceArea: true,
+        category: true,
+        department: true,
+        attachments: true,
+        citizen: { select: { id: true, name: true, email: true } }
+      }
+    });
+    await prisma.statusHistory.create({
+      data: {
+        complaintId: id,
+        fromStatus: complaint.status,
+        toStatus: complaint.status,
+        note: `Administrative score override applied: ${reason}`,
+        isCitizenVisible: false,
+        changedById: req.user.id
+      }
+    });
+    await logAuditEvent(prisma, {
+      complaintId: id,
+      actorId: req.user.id,
+      action: "SCORE_OVERRIDE",
+      details: {
+        previous: {
+          priority: complaint.overridePriority ?? complaint.priority,
+          urgency: complaint.overrideUrgency ?? complaint.urgency,
+          feasibility: complaint.overrideFeasibility ?? complaint.feasibility
+        },
+        overriddenTo: { priority, urgency, feasibility },
+        reason
+      }
+    });
+    res.json({
+      success: true,
+      data: formatComplaint(updated, req.user.role),
+      message: "Scores overridden successfully."
+    });
+  } catch (err) {
+    console.error("[Score Override Error]", err);
+    res.status(500).json({ success: false, error: "Failed to override scores." });
+  }
+});
+router3.post("/:id/retry-analysis", authenticateToken, requireRole("STAFF", "ADMIN"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const complaint = await prisma.complaint.findUnique({ where: { id } });
+    if (!complaint) {
+      res.status(404).json({ success: false, error: "Complaint not found." });
+      return;
+    }
+    if (req.user?.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
+      res.status(403).json({
+        success: false,
+        error: "Access denied: You can only retry analysis for complaints assigned to your department."
+      });
+      return;
+    }
+    const analysisResult = await classifyComplaint(complaint.title, complaint.description);
+    const category = await prisma.category.findUnique({ where: { code: analysisResult.categoryCode } });
+    const categoryId = category ? category.id : null;
+    const routingResult = await routeComplaint(prisma, categoryId, complaint.serviceAreaId);
+    const shouldReview = analysisResult.needsReview || routingResult.requiresReview;
+    const updated = await prisma.complaint.update({
+      where: { id },
+      data: {
+        categoryId,
+        departmentId: routingResult.departmentId || complaint.departmentId,
+        analysisState: "COMPLETED",
+        reviewState: shouldReview ? "REQUIRED" : "NOT_REQUIRED",
+        analysisProvider: analysisResult.provider,
+        analysisVersion: analysisResult.version,
+        classificationConfidence: analysisResult.confidence,
+        aiRationale: analysisResult.rationale,
+        priority: analysisResult.priority,
+        urgency: analysisResult.urgency,
+        feasibility: analysisResult.feasibility
+      },
+      include: {
+        serviceArea: true,
+        category: true,
+        department: true,
+        attachments: true,
+        citizen: { select: { id: true, name: true, email: true } }
+      }
+    });
+    res.json({
+      success: true,
+      data: formatComplaint(updated, req.user?.role),
+      message: "Analysis rerun completed successfully."
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to rerun analysis." });
+  }
+});
+var complaints_default = router3;
 
 // src/server/routes/admin.ts
-var import_express4, router4, admin_default;
-var init_admin = __esm({
-  "src/server/routes/admin.ts"() {
-    "use strict";
-    import_express4 = require("express");
-    init_app();
-    init_auth();
-    init_schemas();
-    init_audit();
-    router4 = (0, import_express4.Router)();
-    router4.use(authenticateToken, requireRole("ADMIN"));
-    router4.get("/users", async (_req, res) => {
-      try {
-        const users = await prisma.user.findMany({
-          orderBy: [{ role: "asc" }, { name: "asc" }],
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            departmentId: true,
-            department: {
-              select: { id: true, name: true, code: true }
-            },
-            createdAt: true
-          }
-        });
-        res.json({
-          success: true,
-          data: users.map((u) => ({
-            ...u,
-            createdAt: u.createdAt.toISOString()
-          }))
-        });
-      } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to retrieve user list." });
+var import_express4 = require("express");
+var router4 = (0, import_express4.Router)();
+router4.use(authenticateToken, requireRole("ADMIN"));
+router4.get("/users", async (_req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        departmentId: true,
+        department: {
+          select: { id: true, name: true, code: true }
+        },
+        createdAt: true
       }
     });
-    router4.post("/staff/assign", async (req, res) => {
-      try {
-        const parsed = StaffDepartmentAssignSchema.safeParse(req.body);
-        if (!parsed.success) {
-          res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Validation error" });
-          return;
-        }
-        const { userId, departmentId } = parsed.data;
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) {
-          res.status(404).json({ success: false, error: "User not found." });
-          return;
-        }
-        if (user.role !== "STAFF") {
-          res.status(400).json({ success: false, error: "Department assignment is only applicable to STAFF accounts." });
-          return;
-        }
-        let deptName = "Unassigned";
-        if (departmentId) {
-          const dept = await prisma.department.findUnique({ where: { id: departmentId } });
-          if (!dept) {
-            res.status(404).json({ success: false, error: "Department not found." });
-            return;
-          }
-          deptName = dept.name;
-        }
-        const updated = await prisma.user.update({
-          where: { id: userId },
-          data: { departmentId },
-          include: { department: true }
-        });
-        if (req.user) {
-          await logAuditEvent(prisma, {
-            actorId: req.user.id,
-            action: "STAFF_DEPARTMENT_ASSIGN",
-            details: {
-              targetUserId: userId,
-              targetUserName: user.name,
-              departmentId,
-              departmentName: deptName
-            }
-          });
-        }
-        res.json({
-          success: true,
-          data: {
-            id: updated.id,
-            email: updated.email,
-            name: updated.name,
-            role: updated.role,
-            departmentId: updated.departmentId,
-            department: updated.department,
-            createdAt: updated.createdAt.toISOString()
-          },
-          message: `Staff member assigned to ${deptName} successfully.`
-        });
-      } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to assign staff department." });
-      }
+    res.json({
+      success: true,
+      data: users.map((u) => ({
+        ...u,
+        createdAt: u.createdAt.toISOString()
+      }))
     });
-    router4.get("/audit-logs", async (req, res) => {
-      try {
-        const logs = await prisma.auditEvent.findMany({
-          take: 100,
-          orderBy: { createdAt: "desc" },
-          include: {
-            actor: { select: { id: true, name: true, role: true, email: true } },
-            complaint: { select: { id: true, reference: true, title: true } }
-          }
-        });
-        res.json({
-          success: true,
-          data: logs.map((log) => ({
-            id: log.id,
-            complaintId: log.complaintId,
-            complaintReference: log.complaint?.reference,
-            complaintTitle: log.complaint?.title,
-            actorId: log.actorId,
-            actorName: log.actor.name,
-            actorRole: log.actor.role,
-            action: log.action,
-            details: (() => {
-              try {
-                return JSON.parse(log.details);
-              } catch {
-                return { raw: log.details };
-              }
-            })(),
-            createdAt: log.createdAt.toISOString()
-          }))
-        });
-      } catch (err) {
-        res.status(500).json({ success: false, error: "Failed to retrieve audit logs." });
-      }
-    });
-    admin_default = router4;
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to retrieve user list." });
   }
 });
+router4.post("/staff/assign", async (req, res) => {
+  try {
+    const parsed = StaffDepartmentAssignSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Validation error" });
+      return;
+    }
+    const { userId, departmentId } = parsed.data;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ success: false, error: "User not found." });
+      return;
+    }
+    if (user.role !== "STAFF") {
+      res.status(400).json({ success: false, error: "Department assignment is only applicable to STAFF accounts." });
+      return;
+    }
+    let deptName = "Unassigned";
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({ where: { id: departmentId } });
+      if (!dept) {
+        res.status(404).json({ success: false, error: "Department not found." });
+        return;
+      }
+      deptName = dept.name;
+    }
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { departmentId },
+      include: { department: true }
+    });
+    if (req.user) {
+      await logAuditEvent(prisma, {
+        actorId: req.user.id,
+        action: "STAFF_DEPARTMENT_ASSIGN",
+        details: {
+          targetUserId: userId,
+          targetUserName: user.name,
+          departmentId,
+          departmentName: deptName
+        }
+      });
+    }
+    res.json({
+      success: true,
+      data: {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        role: updated.role,
+        departmentId: updated.departmentId,
+        department: updated.department,
+        createdAt: updated.createdAt.toISOString()
+      },
+      message: `Staff member assigned to ${deptName} successfully.`
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to assign staff department." });
+  }
+});
+router4.get("/audit-logs", async (req, res) => {
+  try {
+    const logs = await prisma.auditEvent.findMany({
+      take: 100,
+      orderBy: { createdAt: "desc" },
+      include: {
+        actor: { select: { id: true, name: true, role: true, email: true } },
+        complaint: { select: { id: true, reference: true, title: true } }
+      }
+    });
+    res.json({
+      success: true,
+      data: logs.map((log) => ({
+        id: log.id,
+        complaintId: log.complaintId,
+        complaintReference: log.complaint?.reference,
+        complaintTitle: log.complaint?.title,
+        actorId: log.actorId,
+        actorName: log.actor.name,
+        actorRole: log.actor.role,
+        action: log.action,
+        details: (() => {
+          try {
+            return JSON.parse(log.details);
+          } catch {
+            return { raw: log.details };
+          }
+        })(),
+        createdAt: log.createdAt.toISOString()
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Failed to retrieve audit logs." });
+  }
+});
+var admin_default = router4;
 
 // src/server/routes/stats.ts
-var import_express5, router5, stats_default;
-var init_stats = __esm({
-  "src/server/routes/stats.ts"() {
-    "use strict";
-    import_express5 = require("express");
-    init_app();
-    init_auth();
-    init_scoring();
-    router5 = (0, import_express5.Router)();
-    router5.get("/dashboard", authenticateToken, async (req, res) => {
-      try {
-        if (!req.user) {
-          res.status(401).json({ success: false, error: "Authentication required" });
-          return;
+var import_express5 = require("express");
+var router5 = (0, import_express5.Router)();
+router5.get("/dashboard", authenticateToken, async (req, res) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const { role, id, departmentId } = req.user;
+    if (role === "CITIZEN") {
+      const [total2, open, inProgress2, resolved2] = await Promise.all([
+        prisma.complaint.count({ where: { citizenId: id } }),
+        prisma.complaint.count({ where: { citizenId: id, status: { in: ["SUBMITTED", "ASSIGNED"] } } }),
+        prisma.complaint.count({ where: { citizenId: id, status: "IN_PROGRESS" } }),
+        prisma.complaint.count({ where: { citizenId: id, status: "RESOLVED" } })
+      ]);
+      res.json({
+        success: true,
+        data: {
+          totalComplaints: total2,
+          openComplaints: open,
+          inProgressComplaints: inProgress2,
+          resolvedComplaints: resolved2,
+          manualReviewRequired: 0,
+          highPriorityCount: 0
         }
-        const { role, id, departmentId } = req.user;
-        if (role === "CITIZEN") {
-          const [total2, open, inProgress2, resolved2] = await Promise.all([
-            prisma.complaint.count({ where: { citizenId: id } }),
-            prisma.complaint.count({ where: { citizenId: id, status: { in: ["SUBMITTED", "ASSIGNED"] } } }),
-            prisma.complaint.count({ where: { citizenId: id, status: "IN_PROGRESS" } }),
-            prisma.complaint.count({ where: { citizenId: id, status: "RESOLVED" } })
-          ]);
-          res.json({
-            success: true,
-            data: {
-              totalComplaints: total2,
-              openComplaints: open,
-              inProgressComplaints: inProgress2,
-              resolvedComplaints: resolved2,
-              manualReviewRequired: 0,
-              highPriorityCount: 0
-            }
-          });
-          return;
-        }
-        if (role === "STAFF") {
-          if (!departmentId) {
-            res.json({
-              success: true,
-              data: {
-                totalComplaints: 0,
-                openComplaints: 0,
-                inProgressComplaints: 0,
-                resolvedComplaints: 0,
-                manualReviewRequired: 0,
-                highPriorityCount: 0
-              }
-            });
-            return;
-          }
-          const [total2, assigned2, inProgress2, resolved2] = await Promise.all([
-            prisma.complaint.count({ where: { departmentId } }),
-            prisma.complaint.count({ where: { departmentId, status: "ASSIGNED" } }),
-            prisma.complaint.count({ where: { departmentId, status: "IN_PROGRESS" } }),
-            prisma.complaint.count({ where: { departmentId, status: "RESOLVED" } })
-          ]);
-          res.json({
-            success: true,
-            data: {
-              totalComplaints: total2,
-              openComplaints: assigned2,
-              // awaiting attention
-              inProgressComplaints: inProgress2,
-              resolvedComplaints: resolved2,
-              manualReviewRequired: 0,
-              highPriorityCount: 0
-            }
-          });
-          return;
-        }
-        const [total, submitted, assigned, inProgress, resolved, reviewReq, allComplaints] = await Promise.all([
-          prisma.complaint.count(),
-          prisma.complaint.count({ where: { status: "SUBMITTED" } }),
-          prisma.complaint.count({ where: { status: "ASSIGNED" } }),
-          prisma.complaint.count({ where: { status: "IN_PROGRESS" } }),
-          prisma.complaint.count({ where: { status: "RESOLVED" } }),
-          prisma.complaint.count({ where: { reviewState: "REQUIRED" } }),
-          prisma.complaint.findMany({
-            select: {
-              id: true,
-              createdAt: true,
-              resolvedAt: true,
-              priority: true,
-              urgency: true,
-              feasibility: true,
-              overridePriority: true,
-              overrideUrgency: true,
-              overrideFeasibility: true,
-              departmentId: true,
-              status: true
-            }
-          })
-        ]);
-        let highPriorityCount = 0;
-        for (const c of allComplaints) {
-          const scores = computeComplaintScores({
-            createdAt: c.createdAt,
-            resolvedAt: c.resolvedAt,
-            priority: c.priority,
-            urgency: c.urgency,
-            feasibility: c.feasibility,
-            overridePriority: c.overridePriority,
-            overrideUrgency: c.overrideUrgency,
-            overrideFeasibility: c.overrideFeasibility
-          });
-          if (scores.coreScore > 7) {
-            highPriorityCount++;
-          }
-        }
-        const departments = await prisma.department.findMany({
-          include: {
-            complaints: {
-              select: { id: true, status: true }
-            }
-          },
-          orderBy: { name: "asc" }
-        });
-        const departmentStats = departments.map((d) => ({
-          departmentId: d.id,
-          departmentName: d.name,
-          total: d.complaints.length,
-          inProgress: d.complaints.filter((c) => c.status === "IN_PROGRESS").length,
-          resolved: d.complaints.filter((c) => c.status === "RESOLVED").length
-        }));
+      });
+      return;
+    }
+    if (role === "STAFF") {
+      if (!departmentId) {
         res.json({
           success: true,
           data: {
-            totalComplaints: total,
-            openComplaints: submitted + assigned,
-            inProgressComplaints: inProgress,
-            resolvedComplaints: resolved,
-            manualReviewRequired: reviewReq,
-            highPriorityCount,
-            departmentStats
+            totalComplaints: 0,
+            openComplaints: 0,
+            inProgressComplaints: 0,
+            resolvedComplaints: 0,
+            manualReviewRequired: 0,
+            highPriorityCount: 0
           }
         });
-      } catch (err) {
-        console.error("[Dashboard Stats Error]", err);
-        res.status(500).json({ success: false, error: "Failed to retrieve dashboard statistics." });
+        return;
+      }
+      const [total2, assigned2, inProgress2, resolved2] = await Promise.all([
+        prisma.complaint.count({ where: { departmentId } }),
+        prisma.complaint.count({ where: { departmentId, status: "ASSIGNED" } }),
+        prisma.complaint.count({ where: { departmentId, status: "IN_PROGRESS" } }),
+        prisma.complaint.count({ where: { departmentId, status: "RESOLVED" } })
+      ]);
+      res.json({
+        success: true,
+        data: {
+          totalComplaints: total2,
+          openComplaints: assigned2,
+          // awaiting attention
+          inProgressComplaints: inProgress2,
+          resolvedComplaints: resolved2,
+          manualReviewRequired: 0,
+          highPriorityCount: 0
+        }
+      });
+      return;
+    }
+    const [total, submitted, assigned, inProgress, resolved, reviewReq, allComplaints] = await Promise.all([
+      prisma.complaint.count(),
+      prisma.complaint.count({ where: { status: "SUBMITTED" } }),
+      prisma.complaint.count({ where: { status: "ASSIGNED" } }),
+      prisma.complaint.count({ where: { status: "IN_PROGRESS" } }),
+      prisma.complaint.count({ where: { status: "RESOLVED" } }),
+      prisma.complaint.count({ where: { reviewState: "REQUIRED" } }),
+      prisma.complaint.findMany({
+        select: {
+          id: true,
+          createdAt: true,
+          resolvedAt: true,
+          priority: true,
+          urgency: true,
+          feasibility: true,
+          overridePriority: true,
+          overrideUrgency: true,
+          overrideFeasibility: true,
+          departmentId: true,
+          status: true
+        }
+      })
+    ]);
+    let highPriorityCount = 0;
+    for (const c of allComplaints) {
+      const scores = computeComplaintScores({
+        createdAt: c.createdAt,
+        resolvedAt: c.resolvedAt,
+        priority: c.priority,
+        urgency: c.urgency,
+        feasibility: c.feasibility,
+        overridePriority: c.overridePriority,
+        overrideUrgency: c.overrideUrgency,
+        overrideFeasibility: c.overrideFeasibility
+      });
+      if (scores.coreScore > 7) {
+        highPriorityCount++;
+      }
+    }
+    const departments = await prisma.department.findMany({
+      include: {
+        complaints: {
+          select: { id: true, status: true }
+        }
+      },
+      orderBy: { name: "asc" }
+    });
+    const departmentStats = departments.map((d) => ({
+      departmentId: d.id,
+      departmentName: d.name,
+      total: d.complaints.length,
+      inProgress: d.complaints.filter((c) => c.status === "IN_PROGRESS").length,
+      resolved: d.complaints.filter((c) => c.status === "RESOLVED").length
+    }));
+    res.json({
+      success: true,
+      data: {
+        totalComplaints: total,
+        openComplaints: submitted + assigned,
+        inProgressComplaints: inProgress,
+        resolvedComplaints: resolved,
+        manualReviewRequired: reviewReq,
+        highPriorityCount,
+        departmentStats
       }
     });
-    stats_default = router5;
+  } catch (err) {
+    console.error("[Dashboard Stats Error]", err);
+    res.status(500).json({ success: false, error: "Failed to retrieve dashboard statistics." });
   }
 });
+var stats_default = router5;
 
 // src/server/app.ts
-var app_exports = {};
-__export(app_exports, {
-  createApp: () => createApp,
-  prisma: () => prisma
+var globalForPrisma = global;
+var prisma = globalForPrisma.prisma || new import_client2.PrismaClient({
+  log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
 });
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
 function createApp() {
   const app = (0, import_express6.default)();
   app.set("trust proxy", 1);
@@ -2784,46 +2678,12 @@ function createApp() {
   });
   return app;
 }
-var import_express6, import_cors, import_cookie_parser, import_path3, import_fs4, import_crypto4, import_client2, globalForPrisma, prisma;
-var init_app = __esm({
-  "src/server/app.ts"() {
-    "use strict";
-    import_express6 = __toESM(require("express"));
-    import_cors = __toESM(require("cors"));
-    import_cookie_parser = __toESM(require("cookie-parser"));
-    import_path3 = __toESM(require("path"));
-    import_fs4 = __toESM(require("fs"));
-    import_crypto4 = __toESM(require("crypto"));
-    import_client2 = require("@prisma/client");
-    init_auth2();
-    init_meta();
-    init_complaints();
-    init_admin();
-    init_stats();
-    init_storage();
-    init_auth();
-    init_csrf();
-    globalForPrisma = global;
-    prisma = globalForPrisma.prisma || new import_client2.PrismaClient({
-      log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
-    });
-    if (process.env.NODE_ENV !== "production") {
-      globalForPrisma.prisma = prisma;
-    }
-  }
-});
 
-// api/index.ts
-var index_exports = {};
-__export(index_exports, {
-  default: () => handler
-});
-module.exports = __toCommonJS(index_exports);
+// src/server/vercel-handler.ts
 var appInstance = null;
 function getApp() {
   if (!appInstance) {
-    const { createApp: createApp2 } = (init_app(), __toCommonJS(app_exports));
-    appInstance = createApp2();
+    appInstance = createApp();
   }
   return appInstance;
 }

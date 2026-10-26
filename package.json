@@ -7,7 +7,7 @@
     "vercel-build": "prisma generate && npm run build:client && npm run build:server && npm run build:api",
     "build:client": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
-    "build:api": "esbuild api/index.ts --bundle --platform=node --target=node20 --packages=external --outfile=api/index.js",
+    "build:api": "esbuild src/server/vercel-handler.ts --bundle --platform=node --target=node20 --packages=external --outfile=api/index.js",
     "build": "npm run build:client && npm run build:server && npm run build:api",
     "start": "node dist/server/index.js",
     "dev:server": "tsx watch src/server/index.ts",

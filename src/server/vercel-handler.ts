@@ -1,9 +1,9 @@
+import { createApp } from './app';
+
 let appInstance: any = null;
 
 function getApp() {
   if (!appInstance) {
-    // Lazily load express app so any module loading errors are caught in the handler try/catch
-    const { createApp } = require('../src/server/app');
     appInstance = createApp();
   }
   return appInstance;
@@ -13,7 +13,6 @@ export default function handler(req: any, res: any) {
   try {
     const app = getApp();
 
-    // If Vercel rewrote the path, restore original requested route from x-matched-path with query string
     const matchedPath = req.headers['x-matched-path'] as string | undefined;
     if (matchedPath && matchedPath.startsWith('/api')) {
       const queryIndex = (req.url || '').indexOf('?');
