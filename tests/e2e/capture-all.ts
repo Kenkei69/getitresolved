@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { chromium, Browser, Page } from 'playwright-core';
 import http from 'http';
 import fs from 'fs';
@@ -112,7 +113,14 @@ async function main() {
   await page.goto(`${BASE_URL}/admin/audit-logs`, { waitUntil: 'networkidle' });
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'polish-12-audit-logs.png') });
 
-  console.log('8. Capturing 404 Page...');
+  console.log('8. Capturing Privacy Policy and Support...');
+  await page.goto(`${BASE_URL}/privacy`, { waitUntil: 'networkidle' });
+  await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'polish-14-privacy-policy.png') });
+
+  await page.goto(`${BASE_URL}/support`, { waitUntil: 'networkidle' });
+  await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'polish-15-support.png') });
+
+  console.log('9. Capturing 404 Page...');
   await page.goto(`${BASE_URL}/non-existent-page-test-404`, { waitUntil: 'networkidle' });
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'polish-13-not-found-404.png') });
 

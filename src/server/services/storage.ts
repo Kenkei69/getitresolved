@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { Readable } from 'stream';
-import { put, get } from '@vercel/blob';
+import { put, get, head, del } from '@vercel/blob';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { Request, Response } from 'express';
 import { UPLOAD_LIMITS } from '../../shared/constants';
@@ -136,10 +136,12 @@ export async function resolveAttachment(storageFilename: string): Promise<
 /**
  * Direct-to-Vercel-Blob upload handler
  * Generates an upload token scoped strictly to the authenticated user and private access.
+ * Records a server-issued UploadGrant in the database for reliable ownership verification.
  */
 export async function handleDirectBlobUpload(
   req: Request & { user?: any },
-  res: Response
+  res: Response,
+  prismaClient?: any
 ): Promise<void> {
   if (!isBlobStorageConfigured()) {
     res.status(501).json({
@@ -171,16 +173,44 @@ export async function handleDirectBlobUpload(
         const randomBytes = crypto.randomBytes(8).toString('hex');
         const userScopedPath = `attachments/users/${req.user.id}/${Date.now()}-${randomBytes}${ext}`;
 
+        // Record a server-issued upload grant
+        if (prismaClient?.uploadGrant) {
+          try {
+            await prismaClient.uploadGrant.create({
+              data: {
+                userId: req.user.id,
+                pathname: userScopedPath,
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+              },
+            });
+          } catch (grantErr) {
+            console.warn('[Storage] Notice on upload grant recording:', grantErr);
+          }
+        }
+
         return {
           allowedContentTypes: [...UPLOAD_LIMITS.allowedMimeTypes],
           maximumSizeInBytes: UPLOAD_LIMITS.maxSizeBytes, // 5 MB
-          tokenPayload: JSON.stringify({ userId: req.user.id }),
+          tokenPayload: JSON.stringify({ userId: req.user.id, pathname: userScopedPath }),
           pathname: userScopedPath,
           access: 'private', // Enforce private store access
         };
       },
-      onUploadCompleted: async () => {
-        // Blob upload verified
+      onUploadCompleted: async ({ blob }) => {
+        // Blob upload completed, update grant with verified storage URL
+        if (prismaClient?.uploadGrant && blob?.url) {
+          try {
+            await prismaClient.uploadGrant.updateMany({
+              where: {
+                userId: req.user.id,
+                pathname: blob.pathname,
+              },
+              data: {
+                storageUrl: blob.url,
+              },
+            });
+          } catch {}
+        }
       },
     });
 
@@ -192,8 +222,9 @@ export async function handleDirectBlobUpload(
 
 /**
  * Validate pre-uploaded attachments from the client.
- * Verifies that the files belong to the submitting user and our storage account.
- * Rejects arbitrary URLs, another user's uploads, and duplicate attachments.
+ * Verifies that the files belong to the submitting user and our storage account via server-issued grants.
+ * Verifies actual object metadata (true size, MIME type) rather than trusting client-supplied values.
+ * Rejects arbitrary URLs, another user's uploads, duplicate attachment reuse, and oversized submissions.
  */
 export async function validatePreUploadedAttachment(
   attachment: any,
@@ -249,14 +280,67 @@ export async function validatePreUploadedAttachment(
         error: 'Upload ownership mismatch: this file was not authorized for your user account.',
       };
     }
+
+    // Check server-issued upload grant record if available
+    if (prismaClient?.uploadGrant) {
+      const grant = await prismaClient.uploadGrant.findFirst({
+        where: {
+          userId: submittingUserId,
+          used: false,
+          expiresAt: { gte: new Date() },
+          OR: [
+            { pathname: { in: [parsedUrl.pathname.slice(1), parsedUrl.pathname] } },
+            { storageUrl: storageFilename },
+          ],
+        },
+      });
+
+      if (!grant && process.env.NODE_ENV === 'production') {
+        return {
+          valid: false,
+          error: 'Upload authorization record not found, expired, or already used.',
+        };
+      }
+    }
+
+    // Verify actual object metadata from the storage provider if configured
+    if (isBlobStorageConfigured()) {
+      try {
+        const meta = await head(storageFilename);
+        if (!meta) {
+          return { valid: false, error: 'Uploaded object not found in private storage.' };
+        }
+        if (meta.size > UPLOAD_LIMITS.maxSizeBytes) {
+          return { valid: false, error: `Verified attachment size (${meta.size} bytes) exceeds the 5MB limit.` };
+        }
+        if (meta.contentType && !UPLOAD_LIMITS.allowedMimeTypes.includes(meta.contentType as any)) {
+          return { valid: false, error: `Verified content type "${meta.contentType}" is not an allowed image format.` };
+        }
+        attachment.fileSize = meta.size;
+        attachment.mimeType = meta.contentType;
+      } catch (headErr: any) {
+        if (process.env.NODE_ENV === 'production') {
+          return { valid: false, error: 'Failed to verify storage object metadata.' };
+        }
+      }
+    }
   } else {
-    // 2. Local storage verification (forbidden in production)
+    // 2. Local storage verification (strictly forbidden in production)
     if (process.env.NODE_ENV === 'production') {
       return { valid: false, error: 'Local storage references are forbidden in production.' };
     }
 
     if (!/^[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/i.test(storageFilename)) {
       return { valid: false, error: 'Invalid local attachment filename.' };
+    }
+
+    const localFilePath = path.join(localUploadDir, storageFilename);
+    if (fs.existsSync(localFilePath)) {
+      const stat = fs.statSync(localFilePath);
+      if (stat.size > UPLOAD_LIMITS.maxSizeBytes) {
+        return { valid: false, error: 'Attachment exceeds the 5MB size limit.' };
+      }
+      attachment.fileSize = stat.size;
     }
   }
 
@@ -269,4 +353,71 @@ export async function validatePreUploadedAttachment(
   }
 
   return { valid: true };
+}
+
+/**
+ * Mark upload grants as used once a complaint is created to prevent reuse.
+ */
+export async function markUploadGrantsUsed(
+  storageFilenames: string[],
+  userId: string,
+  prismaClient: any
+): Promise<void> {
+  if (!prismaClient?.uploadGrant || !storageFilenames.length) return;
+  try {
+    for (const filename of storageFilenames) {
+      let pathnameMatch = filename;
+      try {
+        const u = new URL(filename);
+        pathnameMatch = u.pathname.startsWith('/') ? u.pathname.slice(1) : u.pathname;
+      } catch {}
+
+      await prismaClient.uploadGrant.updateMany({
+        where: {
+          userId,
+          OR: [
+            { storageUrl: filename },
+            { pathname: pathnameMatch },
+          ],
+        },
+        data: {
+          used: true,
+          storageUrl: filename,
+        },
+      });
+    }
+  } catch (err) {
+    console.warn('[Storage] Error marking upload grants as used:', err);
+  }
+}
+
+/**
+ * Safe cleanup of abandoned uploads without deleting files attached to valid complaints.
+ */
+export async function cleanupAbandonedUploads(prismaClient: any): Promise<number> {
+  if (!prismaClient?.uploadGrant) return 0;
+  try {
+    const expiredGrants = await prismaClient.uploadGrant.findMany({
+      where: {
+        used: false,
+        expiresAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Older than 24h
+      },
+      take: 50,
+    });
+
+    let cleaned = 0;
+    for (const grant of expiredGrants) {
+      if (grant.storageUrl && isBlobStorageConfigured()) {
+        try {
+          await del(grant.storageUrl);
+        } catch {}
+      }
+      await prismaClient.uploadGrant.delete({ where: { id: grant.id } });
+      cleaned++;
+    }
+    return cleaned;
+  } catch (err) {
+    console.error('[Storage] Error in cleanupAbandonedUploads:', err);
+    return 0;
+  }
 }

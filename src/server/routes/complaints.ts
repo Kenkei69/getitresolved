@@ -22,11 +22,28 @@ import {
   handleDirectBlobUpload,
   isBlobStorageConfigured,
   validatePreUploadedAttachment,
+  markUploadGrantsUsed,
 } from '../services/storage';
 import { STATUS_TRANSITIONS } from '../../shared/constants';
 import { ComplaintItem } from '../../shared/types';
+import { rateLimiter } from '../services/rateLimit';
 
 const router = Router();
+
+const uploadAuthLimiter = rateLimiter({
+  prefix: 'rl:upload:auth',
+  maxPoints: 15,
+  windowSeconds: 15 * 60, // 15 requests per 15 mins
+  message: 'Upload authorization limit reached. Please wait a few minutes before uploading more photos.',
+});
+
+const complaintSubmitLimiter = rateLimiter({
+  prefix: 'rl:complaint:submit',
+  maxPoints: 10,
+  windowSeconds: 15 * 60, // 10 complaints per 15 mins
+  message: 'Complaint submission limit reached. Please wait a few minutes before submitting another report.',
+  keyGenerator: (req) => (req as AuthRequest).user?.id || req.ip || 'unknown',
+});
 
 // Helper to format a complaint object for API responses
 export function formatComplaint(c: any, currentUserRole?: string): ComplaintItem {
@@ -144,14 +161,15 @@ async function generateComplaintReference(): Promise<string> {
 }
 
 // DIRECT BLOB UPLOAD HANDLER FOR VERCEL
-router.post('/upload-handler', authenticateToken, (req: AuthRequest, res: Response) => {
-  return handleDirectBlobUpload(req, res);
+router.post('/upload-handler', authenticateToken, uploadAuthLimiter, (req: AuthRequest, res: Response) => {
+  return handleDirectBlobUpload(req, res, prisma);
 });
 
 // SUBMIT COMPLAINT (CITIZEN or ADMIN)
 router.post(
   '/',
   authenticateToken,
+  complaintSubmitLimiter,
   complaintUpload.array('attachments', 3),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -273,6 +291,15 @@ router.post(
         action: 'SUBMIT_COMPLAINT',
         details: { reference, title, serviceArea: serviceArea.name, filesCount: files.length },
       });
+
+      // Mark any pre-uploaded attachment grants as used
+      if (finalAttachments.length > 0) {
+        await markUploadGrantsUsed(
+          finalAttachments.map((a) => a.storageFilename),
+          req.user.id,
+          prisma
+        );
+      }
 
       // 2. Perform AI classification and scoring
       let analysisResult;
@@ -1029,6 +1056,15 @@ router.post('/:id/retry-analysis', authenticateToken, requireRole('STAFF', 'ADMI
     const complaint = await prisma.complaint.findUnique({ where: { id } });
     if (!complaint) {
       res.status(404).json({ success: false, error: 'Complaint not found.' });
+      return;
+    }
+
+    // Role-based authorization: Staff can only retry analysis for complaints assigned to their department
+    if (req.user?.role === 'STAFF' && complaint.departmentId !== req.user.departmentId) {
+      res.status(403).json({
+        success: false,
+        error: 'Access denied: You can only retry analysis for complaints assigned to your department.',
+      });
       return;
     }
 

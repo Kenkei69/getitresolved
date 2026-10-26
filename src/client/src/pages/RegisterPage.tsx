@@ -130,6 +130,14 @@ export const RegisterPage: React.FC = () => {
               <FormHelp>Must be at least 8 characters long.</FormHelp>
             </div>
 
+            <p className="text-xs text-slate-500">
+              By registering, you acknowledge our{' '}
+              <Link to="/privacy" className="text-civic-700 font-medium hover:underline">
+                Privacy Policy
+              </Link>{' '}
+              for handling complaint records.
+            </p>
+
             <Button
               type="submit"
               variant="primary"
