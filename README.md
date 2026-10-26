@@ -32,51 +32,220 @@ The system comes pre-seeded with realistic fictional data covering all categorie
 
 ---
 
-## 3. Application Dashboards & Visual Workflow Walkthrough
+## 3. Operational Dashboards & Practical Data Visuals
 
-### 👤 Citizen Journey: Reporting to Transparent Resolution
+### 3.1. Role-Based Dashboard Architecture
 
-| 1. Citizen Dashboard & Active Reports | 2. Incident Submission with Direct Uploads |
-| :---: | :---: |
-| ![Citizen Dashboard](tests/e2e/screenshots/3-citizen-dashboard.png) | ![Complaint Submission Form](tests/e2e/screenshots/4-citizen-submit-form.png) |
-| *Personal dashboard with metrics, search filters, and status badges* | *Structured form with location input and private photo dropzone* |
+```mermaid
+flowchart TD
+    subgraph Citizen["Citizen Portal Dashboard"]
+        C1["Metrics: Active Reports, Resolved, In Review"]
+        C2["Incident Intake Form: Geolocation, Categorization, 3x Photos"]
+        C3["Live Tracking Table: Unique Ref, Dynamic Timeline, Star Indicators"]
+    end
 
-| 3. Instant Reference Confirmation | 4. Real-time Progress & Scoring Details |
-| :---: | :---: |
-| ![Submission Confirmation](tests/e2e/screenshots/5-submission-confirmation.png) | ![Citizen Report Details](tests/e2e/screenshots/6-complaint-tracking-citizen.png) |
-| *Deterministic routing reference (`CR-XXXXXX`) with 1-click copy* | *Objective 3-factor core score, star badges, timeline & notes* |
+    subgraph Staff["Department Staff Operational Queue"]
+        S1["Jurisdiction Backlog: Filtered by Assigned Department"]
+        S2["Triage Prioritization: Sorted by Core Score & Severe Stars"]
+        S3["Workflow Actions: Claim -> In Progress -> Resolve with Notes"]
+    end
+
+    subgraph Admin["Municipal Administrator Command Center"]
+        A1["Executive KPIs: Total Volume, Resolution Rate, Avg SLA"]
+        A2["Manual Review Queue: AI Confidence Diverted Issues (< 0.75)"]
+        A3["Governance: Staff Management, Score Overrides & Audit Trail"]
+    end
+
+    Citizen -->|"REST API (/api/complaints)"| CoreSystem["Getitresolved Core Engine"]
+    CoreSystem --> Staff
+    CoreSystem --> Admin
+```
+
+### 3.2. Practical Data Dashboards
+
+#### 👤 Citizen Dashboard (Active Reports & Status Triage)
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ CITIZEN PORTAL DASHBOARD — Authenticated: Jane Doe (citizen.jane@example.com)                          │
+├──────────────────────────┬──────────────────────────┬──────────────────────────┬───────────────────────┤
+│ Active Reports: 2        │ In Progress: 1           │ Resolved: 3              │ Total Filed: 5        │
+└──────────────────────────┴──────────────────────────┴──────────────────────────┴───────────────────────┘
+```
+
+| Reference ID | Incident Description | Department | Filed Date | Priority | Urgency | Duration | Core Score | Star Flags | Status |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| `CR-882140` | Deep pothole on 4th Ave bus lane | Roads & Works | 24d ago | 8.2 | 7.5 | 8.0 | **7.9** | 🔴 🟠 🌸 | `IN_PROGRESS` |
+| `CR-910442` | Streetlight flickering at Elm St | Electrical | 6d ago | 4.0 | 5.0 | 2.0 | **4.1** | — | `ASSIGNED` |
+| `CR-774019` | Water main rupture flooding curb | Water Supply | 32d ago | 9.0 | 9.5 | 10.0 | **9.3** | 🔴 🟠 🌸 | `RESOLVED` |
 
 ---
 
-### 🛠️ Department Staff Operations: Triage, Progress & Resolution
+#### 🛠️ Department Staff Queue (Operational Triage & Remediation)
 
-| 1. Department Filtered Queue | 2. Progress Update & Citizen-Visible Notes |
-| :---: | :---: |
-| ![Staff Assigned Queue](tests/e2e/screenshots/7-staff-queue.png) | ![Staff In-Progress & Notes](tests/e2e/screenshots/8-staff-in-progress.png) |
-| *Scoped to department jurisdiction with priority/urgency sorting* | *Status transitions with required explanatory notes and audit logging* |
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ DEPARTMENT QUEUE — Water Supply Division (David Okafor)                                                │
+├──────────────────────────┬──────────────────────────┬──────────────────────────┬───────────────────────┤
+│ Assigned Backlog: 8      │ Under Investigation: 4   │ Resolved This Month: 27  │ Median SLA: 4.2 Days  │
+└──────────────────────────┴──────────────────────────┴──────────────────────────┴───────────────────────┘
+```
 
----
-
-### 🏛️ Municipal Administrator Controls: Governance & Audit Trail
-
-| 1. Executive Operations Overview | 2. AI Manual Review & Triage Queue |
-| :---: | :---: |
-| ![Administrator Dashboard](tests/e2e/screenshots/9-admin-dashboard.png) | ![Manual Review Queue](tests/e2e/screenshots/10-admin-manual-review-queue.png) |
-| *System-wide metrics, department workload, and recent activity* | *Uncertain categorization (<0.75 confidence) triage with AI diagnostics* |
-
-| 3. Staff & Department Assignment | 4. Immutable System Audit Logs |
-| :---: | :---: |
-| ![Staff Management](tests/e2e/screenshots/11-admin-staff-management.png) | ![System Audit Logs](tests/e2e/screenshots/12-admin-audit-logs.png) |
-| *Staff directory, department roster, and permission controls* | *Comprehensive audit trail of status updates and score overrides* |
+| Queue Priority | Reference | Incident Location | Unresolved Age | Severity Flags | AI Confidence | Workflow Action |
+| :---: | :--- | :--- | :---: | :---: | :---: | :--- |
+| **P1 — Critical** | `CR-940112` | 14th & River Blvd | 2d ago | 🔴 Red · 🟠 Orange | 0.94 (Gemini) | `[Claim & Begin Work]` |
+| **P2 — Urgent** | `CR-882190` | 822 Maple Ave | 18d ago | 🔴 Red | 0.88 (Gemini) | `[Add Field Inspection]` |
+| **P3 — Standard** | `CR-903421` | High Street Hydrant | 4d ago | — | 0.82 (Rule-Based) | `[Update Status / Notes]` |
 
 ---
 
-### 🌐 Civic Portal & Objective Scoring Guide
+#### 🏛️ Municipal Administrator Command Center (Executive Governance)
 
-| Civic Landing Page (Desktop & Mobile) | Transparent Scoring & Star Indicator Guide |
-| :---: | :---: |
-| ![Landing Page Desktop](tests/e2e/screenshots/1-landing-desktop.png) | ![Scoring Guide](tests/e2e/screenshots/2-scoring-guide.png) |
-| *Public entry point explaining civic reporting journey* | *Full disclosure of priority, urgency, duration & star criteria* |
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ MUNICIPAL EXECUTIVE DASHBOARD — System Overview & Governance (Elena Rostova)                           │
+├──────────────────────────┬──────────────────────────┬──────────────────────────┬───────────────────────┤
+│ Total Municipal Issues   │ Manual Review Queue      │ Dept Resolution Rate     │ Active Staff Members  │
+│ 1,482                    │ 7 Pending Review         │ 91.4% (30-day window)    │ 34 Personnel          │
+└──────────────────────────┴──────────────────────────┴──────────────────────────┴───────────────────────┘
+```
+
+##### AI Manual Review & Triage Diverted Issues
+| Incident Ref | Citizen Input Summary | Detected Keywords | Confidence | Fallback Diagnostic Reason | Admin Action |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| `CR-951004` | "Strange chemical odor near playground fence" | `smell`, `ground` | **0.61** | Ambiguous category (`< 0.75`) | `[Assign: Sanitation]` |
+| `CR-951012` | "Metal box buzzing loudly near sidewalk" | `buzzing`, `box` | **0.58** | Unmapped municipal asset | `[Assign: Electrical]` |
+
+---
+
+### 3.3. Relational Entity-Relationship Data Model
+
+```mermaid
+erDiagram
+    USER ||--o{ COMPLAINT : "files"
+    USER ||--o{ AUDIT_LOG : "triggers"
+    USER ||--o{ SCORE_OVERRIDE : "authorizes"
+    DEPARTMENT ||--o{ USER : "employs"
+    DEPARTMENT ||--o{ COMPLAINT : "handles"
+    COMPLAINT ||--o{ ATTACHMENT : "contains"
+    COMPLAINT ||--o{ AUDIT_LOG : "generates"
+    COMPLAINT ||--o{ SCORE_OVERRIDE : "receives"
+
+    USER {
+        string id PK
+        string email UK
+        string name
+        string role
+        string departmentId FK
+        datetime createdAt
+    }
+
+    DEPARTMENT {
+        string id PK
+        string name UK
+        string code UK
+        string description
+    }
+
+    COMPLAINT {
+        string id PK
+        string referenceNumber UK
+        string title
+        string description
+        string address
+        string category
+        string status
+        float priorityScore
+        float urgencyScore
+        float durationScore
+        float feasibilityScore
+        float coreScore
+        boolean isFlaggedForReview
+        string userId FK
+        string departmentId FK
+        datetime resolvedAt
+        datetime createdAt
+    }
+
+    ATTACHMENT {
+        string id PK
+        string complaintId FK
+        string fileUrl
+        string originalName
+        int sizeBytes
+        string mimeType
+    }
+
+    AUDIT_LOG {
+        string id PK
+        string complaintId FK
+        string actorId FK
+        string action
+        string details
+        datetime timestamp
+    }
+
+    SCORE_OVERRIDE {
+        string id PK
+        string complaintId FK
+        string adminId FK
+        string factor
+        float originalScore
+        float overriddenScore
+        string reason
+        datetime timestamp
+    }
+```
+
+---
+
+### 3.4. Complaint Lifecycle State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> SUBMITTED : Citizen submits complaint
+    SUBMITTED --> ASSIGNED : AI or Deterministic match (Confidence >= 0.75)
+    SUBMITTED --> MANUAL_REVIEW : Low confidence (< 0.75) or Category OTHER
+    MANUAL_REVIEW --> ASSIGNED : Administrator assigns department
+    ASSIGNED --> IN_PROGRESS : Department staff claims issue
+    IN_PROGRESS --> RESOLVED : Staff completes remediation & enters notes
+    IN_PROGRESS --> ASSIGNED : Department reassignment
+    RESOLVED --> CLOSED : Administrative archive or citizen acknowledgment
+    CLOSED --> [*]
+```
+
+---
+
+### 3.5. End-to-End Data Transaction Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Citizen
+    participant Client as Frontend SPA
+    participant API as Express API Server
+    participant AI as Gemini or Rule Engine
+    participant DB as PostgreSQL (Prisma)
+    actor Staff as Dept Staff
+
+    Citizen->>Client: Fill complaint and attach photos
+    Client->>API: POST /api/complaints
+    API->>API: Zod schema and attachment validation
+    API->>AI: Classify(title, description, photos)
+    alt High Confidence (>= 0.75)
+        AI-->>API: Category + Priority + Urgency
+        API->>DB: Persist with status ASSIGNED
+    else Low Confidence (< 0.75) or OTHER
+        AI-->>API: Ambiguous categorization
+        API->>DB: Persist with status SUBMITTED (Review Required)
+    end
+    API-->>Client: Return 201 Created (Reference CR-XXXXXX)
+    Client-->>Citizen: Display Confirmation and Tracking Link
+    Staff->>API: GET /api/complaints?department=Water
+    API->>DB: Query department records
+    DB-->>API: Return scoped complaints
+    API-->>Staff: Render Staff Queue
+```
 
 ---
 
@@ -212,11 +381,16 @@ flowchart TD
     K --> L["Resolution with Citizen-Visible Notes (status: RESOLVED)"]
 ```
 
-#### Lifecycle Visual Stages
+#### Lifecycle Stage Transitions & Data Requirements
 
-| Step 1: Citizen Submission Form | Step 2: Routing & Status Tracking | Step 3: Staff Resolution with Notes |
-| :---: | :---: | :---: |
-| ![Incident Reporting Form](tests/e2e/screenshots/4-citizen-submit-form.png) | ![Complaint Tracking](tests/e2e/screenshots/6-complaint-tracking-citizen.png) | ![Staff Progress Modal](tests/e2e/screenshots/8-staff-in-progress.png) |
+| Stage | Trigger Actor / Engine | Invariants & Business Logic | Audit Logging |
+| :--- | :--- | :--- | :---: |
+| `SUBMITTED` | Citizen | Zod validated payload; $\le 3$ images; $\le 5\text{MB}$ each | Initial record created |
+| `MANUAL_REVIEW` | AI Classifier / Rule Engine | Triggers if confidence $< 0.75$ or category is `OTHER` | `REVIEW_TRIGGERED` |
+| `ASSIGNED` | Router or Administrator | Assigned strictly to valid department service area | `DEPARTMENT_ASSIGNED` |
+| `IN_PROGRESS` | Department Staff | Status transition locked to assigned department staff | `STATUS_UPDATED` |
+| `RESOLVED` | Department Staff | Mandatory citizen-visible remediation notes required | `STATUS_UPDATED` + Notes |
+| `CLOSED` | Admin or Citizen | Age calculation frozen at `resolvedAt` permanently | `COMPLAINT_CLOSED` |
 
 ### 8.2. Multi-Factor Scoring & Strict Star Thresholds
 
@@ -249,11 +423,16 @@ flowchart LR
     F --> SF
 ```
 
-#### Scoring Interface & Transparent Assessment Guide
+#### Multi-Factor Weighting & Star Trigger Matrix
 
-| Core Impact Score & Stars on Complaint Record | Public Scoring & Prioritization Guide |
-| :---: | :---: |
-| ![Complaint Detail Score Card](tests/e2e/screenshots/6-complaint-tracking-citizen.png) | ![Scoring Guide](tests/e2e/screenshots/2-scoring-guide.png) |
+| Score Dimension | Weight in Core Score | Computation Rule | Threshold for Star Indicator | Color Badge |
+| :--- | :---: | :--- | :---: | :---: |
+| **Priority ($P$)** | **45%** ($0.45 \times P$) | Severity of civic disruption & public impact (0–10) | Strictly $> 7.0$ | 🔴 Red Star |
+| **Urgency ($U$)** | **40%** ($0.40 \times U$) | Immediate safety hazard / accident risk (0–10) | Strictly $> 7.0$ | 🟠 Orange Star |
+| **Duration ($D$)** | **15%** ($0.15 \times D$) | Server calculated: $\min(10, \lfloor \text{days} / 3 \rfloor)$ | Strictly $> 7.0$ (Day 24+) | 🌸 Pink Star |
+| **Feasibility ($F$)** | *0% (Excluded)* | Provisional resolution ease estimate (0–10) | Strictly $> 7.0$ | 🟢 Green Star |
+
+$$\mathbf{Core\ Score} = \mathrm{round}\left(0.45 \times P + 0.40 \times U + 0.15 \times \min(10, \lfloor \text{days} / 3 \rfloor),\ 1\right)$$
 
 ### 8.3. Vercel Cloud Serverless Architecture
 
