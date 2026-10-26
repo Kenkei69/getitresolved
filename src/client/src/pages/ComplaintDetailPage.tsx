@@ -28,6 +28,9 @@ import {
   ImageOff,
   Sparkles,
   ExternalLink,
+  Printer,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 export const ComplaintDetailPage: React.FC = () => {
@@ -46,6 +49,15 @@ export const ComplaintDetailPage: React.FC = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [overrideModalOpen, setOverrideModalOpen] = useState(false);
   const [retryingAnalysis, setRetryingAnalysis] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+
+  const handleCopyRef = () => {
+    if (complaint) {
+      navigator.clipboard.writeText(complaint.reference);
+      setCopiedRef(true);
+      setTimeout(() => setCopiedRef(false), 2000);
+    }
+  };
 
   // Image load error tracker
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
@@ -167,7 +179,7 @@ export const ComplaintDetailPage: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Top Breadcrumb & Action Banner */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
+      <div className="flex items-center justify-between border-b border-slate-200/80 pb-4 print:hidden">
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
@@ -176,9 +188,45 @@ export const ComplaintDetailPage: React.FC = () => {
           <span>Back to List</span>
         </button>
 
-        <span className="font-mono text-sm font-bold text-civic-700 bg-civic-50 px-3 py-1 rounded-lg border border-civic-200">
-          {complaint.reference}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCopyRef}
+            className="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-civic-700 bg-civic-50 hover:bg-civic-100 px-3 py-1.5 rounded-xl border border-civic-200 transition-colors shadow-xs"
+            title="Click to copy tracking reference"
+          >
+            {copiedRef ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+            <span>{complaint.reference}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-xl shadow-xs transition-colors"
+            title="Print or export PDF receipt"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-500" />
+            <span>Print Receipt</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Printable Receipt Municipal Header (Visible exclusively when printing or generating PDF) */}
+      <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-black uppercase tracking-wider text-slate-900">
+              Getitresolved &bull; Municipal Issue Management
+            </h1>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Official Resolution Tracking Receipt &bull; Municipal Public Works &amp; Infrastructure
+            </p>
+          </div>
+          <div className="text-right text-xs text-slate-600">
+            <div>Printed: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</div>
+            <div className="font-mono font-bold text-sm text-slate-900 mt-0.5">{complaint.reference}</div>
+          </div>
+        </div>
       </div>
 
       {actionNotice && (
@@ -219,7 +267,7 @@ export const ComplaintDetailPage: React.FC = () => {
         </div>
 
         {/* Operational Actions for Staff / Admin */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start md:self-center">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start md:self-center print:hidden">
           {isStaff && complaint.status !== 'RESOLVED' && (
             <Button
               variant="primary"
