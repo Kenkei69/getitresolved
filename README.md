@@ -32,7 +32,55 @@ The system comes pre-seeded with realistic fictional data covering all categorie
 
 ---
 
-## 3. Quick Start & Startup Commands
+## 3. Application Dashboards & Visual Workflow Walkthrough
+
+### 👤 Citizen Journey: Reporting to Transparent Resolution
+
+| 1. Citizen Dashboard & Active Reports | 2. Incident Submission with Direct Uploads |
+| :---: | :---: |
+| ![Citizen Dashboard](tests/e2e/screenshots/3-citizen-dashboard.png) | ![Complaint Submission Form](tests/e2e/screenshots/4-citizen-submit-form.png) |
+| *Personal dashboard with metrics, search filters, and status badges* | *Structured form with location input and private photo dropzone* |
+
+| 3. Instant Reference Confirmation | 4. Real-time Progress & Scoring Details |
+| :---: | :---: |
+| ![Submission Confirmation](tests/e2e/screenshots/5-submission-confirmation.png) | ![Citizen Report Details](tests/e2e/screenshots/6-complaint-tracking-citizen.png) |
+| *Deterministic routing reference (`CR-XXXXXX`) with 1-click copy* | *Objective 3-factor core score, star badges, timeline & notes* |
+
+---
+
+### 🛠️ Department Staff Operations: Triage, Progress & Resolution
+
+| 1. Department Filtered Queue | 2. Progress Update & Citizen-Visible Notes |
+| :---: | :---: |
+| ![Staff Assigned Queue](tests/e2e/screenshots/7-staff-queue.png) | ![Staff In-Progress & Notes](tests/e2e/screenshots/8-staff-in-progress.png) |
+| *Scoped to department jurisdiction with priority/urgency sorting* | *Status transitions with required explanatory notes and audit logging* |
+
+---
+
+### 🏛️ Municipal Administrator Controls: Governance & Audit Trail
+
+| 1. Executive Operations Overview | 2. AI Manual Review & Triage Queue |
+| :---: | :---: |
+| ![Administrator Dashboard](tests/e2e/screenshots/9-admin-dashboard.png) | ![Manual Review Queue](tests/e2e/screenshots/10-admin-manual-review-queue.png) |
+| *System-wide metrics, department workload, and recent activity* | *Uncertain categorization (<0.75 confidence) triage with AI diagnostics* |
+
+| 3. Staff & Department Assignment | 4. Immutable System Audit Logs |
+| :---: | :---: |
+| ![Staff Management](tests/e2e/screenshots/11-admin-staff-management.png) | ![System Audit Logs](tests/e2e/screenshots/12-admin-audit-logs.png) |
+| *Staff directory, department roster, and permission controls* | *Comprehensive audit trail of status updates and score overrides* |
+
+---
+
+### 🌐 Civic Portal & Objective Scoring Guide
+
+| Civic Landing Page (Desktop & Mobile) | Transparent Scoring & Star Indicator Guide |
+| :---: | :---: |
+| ![Landing Page Desktop](tests/e2e/screenshots/1-landing-desktop.png) | ![Scoring Guide](tests/e2e/screenshots/2-scoring-guide.png) |
+| *Public entry point explaining civic reporting journey* | *Full disclosure of priority, urgency, duration & star criteria* |
+
+---
+
+## 4. Quick Start & Startup Commands
 
 ### Prerequisites
 - Node.js 20+ (Node 22 recommended)
@@ -78,7 +126,7 @@ docker compose logs -f app
 
 ---
 
-## 4. Scoring Formulas, Rubrics & Star Indicators
+## 5. Scoring Formulas, Rubrics & Star Indicators
 
 Getitresolved implements four objective scores on a 0–10 scale:
 
@@ -103,7 +151,7 @@ A star is awarded **strictly when a score exceeds 7.0** ($> 7.0$). A score of ex
 
 ---
 
-## 5. Department Routing & AI Fallback
+## 6. Department Routing & AI Fallback
 
 - **Deterministic Routing Table:** Mapped via `Category + Service Area -> Department`. Routing logic is strictly decoupled from AI inference.
 - **Predefined Categories:**
@@ -120,7 +168,7 @@ A star is awarded **strictly when a score exceeds 7.0** ($> 7.0$). A score of ex
 
 ---
 
-## 6. Testing & Quality Verification
+## 7. Testing & Quality Verification
 
 Run the complete test suite:
 
@@ -143,9 +191,9 @@ All 30 backend tests and 4 end-to-end browser journeys verify:
 
 ---
 
-## 7. System Architecture & Workflows
+## 8. System Architecture & Workflows
 
-### 7.1. Complaint Lifecycle Workflow
+### 8.1. Complaint Lifecycle Workflow
 
 ```mermaid
 flowchart TD
@@ -164,7 +212,13 @@ flowchart TD
     K --> L["Resolution with Citizen-Visible Notes (status: RESOLVED)"]
 ```
 
-### 7.2. Multi-Factor Scoring & Strict Star Thresholds
+#### Lifecycle Visual Stages
+
+| Step 1: Citizen Submission Form | Step 2: Routing & Status Tracking | Step 3: Staff Resolution with Notes |
+| :---: | :---: | :---: |
+| ![Incident Reporting Form](tests/e2e/screenshots/4-citizen-submit-form.png) | ![Complaint Tracking](tests/e2e/screenshots/6-complaint-tracking-citizen.png) | ![Staff Progress Modal](tests/e2e/screenshots/8-staff-in-progress.png) |
+
+### 8.2. Multi-Factor Scoring & Strict Star Thresholds
 
 ```mermaid
 flowchart LR
@@ -195,7 +249,13 @@ flowchart LR
     F --> SF
 ```
 
-### 7.3. Vercel Cloud Serverless Architecture
+#### Scoring Interface & Transparent Assessment Guide
+
+| Core Impact Score & Stars on Complaint Record | Public Scoring & Prioritization Guide |
+| :---: | :---: |
+| ![Complaint Detail Score Card](tests/e2e/screenshots/6-complaint-tracking-citizen.png) | ![Scoring Guide](tests/e2e/screenshots/2-scoring-guide.png) |
+
+### 8.3. Vercel Cloud Serverless Architecture
 
 ```mermaid
 flowchart TD
@@ -210,7 +270,7 @@ flowchart TD
 
 ---
 
-## 8. Production Deployment & Security Configuration
+## 9. Production Deployment & Security Configuration
 
 Getitresolved is configured for high-performance serverless deployment on Vercel:
 
