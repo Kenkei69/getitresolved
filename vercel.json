@@ -4,18 +4,10 @@
   "outputDirectory": "dist/client",
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": [
-        "prisma/schema.prisma",
-        "node_modules/.prisma/**/*",
-        "node_modules/@prisma/client/**/*"
-      ]
+      "includeFiles": "{prisma/schema.prisma,node_modules/.prisma/**,node_modules/@prisma/client/**}"
     },
     "api/*.ts": {
-      "includeFiles": [
-        "prisma/schema.prisma",
-        "node_modules/.prisma/**/*",
-        "node_modules/@prisma/client/**/*"
-      ]
+      "includeFiles": "{prisma/schema.prisma,node_modules/.prisma/**,node_modules/@prisma/client/**}"
     }
   },
   "rewrites": [
