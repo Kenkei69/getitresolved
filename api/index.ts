@@ -9,7 +9,7 @@ function getApp() {
   return appInstance;
 }
 
-export default async function handler(req: any, res: any) {
+export default function handler(req: any, res: any) {
   try {
     const app = getApp();
 
@@ -23,7 +23,11 @@ export default async function handler(req: any, res: any) {
       req.url = `/api${req.url.startsWith('/') ? '' : '/'}${req.url}`;
     }
 
-    return app(req, res);
+    return new Promise((resolve) => {
+      res.on('finish', resolve);
+      res.on('close', resolve);
+      app(req, res);
+    });
   } catch (err: any) {
     console.error('[Vercel Serverless Function Crash Caught]', err);
     if (!res.headersSent) {
