@@ -2,12 +2,31 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { Role, SafeUser } from '../../shared/types';
 import { prisma } from '../app';
+import { setCsrfCookie } from './csrf';
 
 export interface AuthRequest extends Request {
   user?: SafeUser;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'civic-resolve-fallback-secret-2026';
+const FALLBACK_SECRET = 'civic-resolve-fallback-secret-2026';
+
+export function getJwtSecret(): string {
+  if (process.env.NODE_ENV === 'production') {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret === FALLBACK_SECRET || secret.length < 32) {
+      throw new Error(
+        'CRITICAL AUTH ERROR: A secure, strong JWT_SECRET (at least 32 characters) is strictly required in production.'
+      );
+    }
+    return secret;
+  }
+  return process.env.JWT_SECRET || FALLBACK_SECRET;
+}
+
+export function assertAuthConfigured(): void {
+  getJwtSecret();
+}
+
 const TOKEN_COOKIE_NAME = 'civic_session';
 
 export function signToken(user: SafeUser): string {
@@ -18,7 +37,7 @@ export function signToken(user: SafeUser): string {
       role: user.role,
       departmentId: user.departmentId,
     },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '7d' }
   );
 }
@@ -32,6 +51,7 @@ export function setAuthCookie(res: Response, token: string) {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: '/',
   });
+  setCsrfCookie(res);
 }
 
 export function clearAuthCookie(res: Response) {
@@ -51,7 +71,7 @@ export async function authenticateToken(req: AuthRequest, res: Response, next: N
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: Role };
+    const payload = jwt.verify(token, getJwtSecret()) as { id: string; email: string; role: Role };
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
       include: {

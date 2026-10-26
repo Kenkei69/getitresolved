@@ -191,17 +191,36 @@ export const Navbar: React.FC = () => {
                   </Link>
                 </nav>
               )}
+
+              {/* Public Desktop Nav Links */}
+              {!user && (
+                <nav className="hidden md:flex items-center gap-1 ml-4" aria-label="Public Navigation">
+                  <Link
+                    to="/submit"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold text-white bg-civic-600 hover:bg-civic-700 shadow-xs transition-colors min-h-[38px]"
+                  >
+                    <PlusCircle className="w-4 h-4" aria-hidden="true" />
+                    <span>Report Issue</span>
+                  </Link>
+                  <Link to="/scoring-guide" className={linkClass('/scoring-guide')}>
+                    How Scoring Works
+                  </Link>
+                  <Link to="/support" className={linkClass('/support')}>
+                    Support
+                  </Link>
+                </nav>
+              )}
             </div>
 
             {/* Right Side: Demo Logins, Account Info, Auth Buttons */}
             <div className="flex items-center gap-3">
-              {/* Demo Logins button (guarded by enableDemoAccounts) */}
-              {enableDemoAccounts && (
+              {/* Demo Logins button (guarded by enableDemoAccounts and only shown when logged out) */}
+              {enableDemoAccounts && !user && (
                 <button
                   type="button"
                   onClick={() => setDemoModalOpen(true)}
                   className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 min-h-[38px]"
-                  title="View and test demo accounts for Citizen, Staff, and Admin"
+                  title="View and test demo accounts"
                 >
                   <KeyRound className="w-4 h-4 text-amber-700" aria-hidden="true" />
                   <span>Demo Logins</span>
@@ -276,7 +295,7 @@ export const Navbar: React.FC = () => {
             ref={mobileMenuRef}
             className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-2 shadow-lg"
           >
-            {enableDemoAccounts && (
+            {enableDemoAccounts && !user && (
               <button
                 type="button"
                 onClick={() => {
@@ -396,6 +415,14 @@ export const Navbar: React.FC = () => {
             ) : (
               <>
                 <Link
+                  to="/submit"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl text-base font-semibold text-white bg-civic-600 hover:bg-civic-700 min-h-[44px]"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Report an Issue</span>
+                </Link>
+                <Link
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
                   className={mobileLinkClass('/login')}
@@ -405,7 +432,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/register"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center px-4 py-3 rounded-xl text-base font-semibold text-white bg-civic-600 hover:bg-civic-700 min-h-[44px]"
+                  className="flex items-center justify-center px-4 py-3 rounded-xl text-base font-semibold text-civic-700 bg-civic-50 hover:bg-civic-100 border border-civic-200 min-h-[44px]"
                 >
                   Register Account
                 </Link>
@@ -416,6 +443,20 @@ export const Navbar: React.FC = () => {
                 >
                   <HelpCircle className="w-5 h-5 text-slate-400" />
                   How Scoring Works
+                </Link>
+                <Link
+                  to="/support"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={mobileLinkClass('/support')}
+                >
+                  Help &amp; Support
+                </Link>
+                <Link
+                  to="/privacy"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={mobileLinkClass('/privacy')}
+                >
+                  Privacy Policy
                 </Link>
               </>
             )}

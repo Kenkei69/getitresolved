@@ -4,11 +4,26 @@ import { prisma } from '../app';
 import { RegisterSchema, LoginSchema } from '../../shared/schemas';
 import { signToken, setAuthCookie, clearAuthCookie, authenticateToken, AuthRequest } from '../middleware/auth';
 import { logAuditEvent } from '../services/audit';
+import { rateLimiter } from '../services/rateLimit';
 
 const router = Router();
 
+const loginLimiter = rateLimiter({
+  prefix: 'rl:auth:login',
+  maxPoints: 10,
+  windowSeconds: 15 * 60, // 15 minutes
+  message: 'Too many login attempts. Please wait 15 minutes before trying again.',
+});
+
+const registerLimiter = rateLimiter({
+  prefix: 'rl:auth:register',
+  maxPoints: 5,
+  windowSeconds: 60 * 60, // 1 hour
+  message: 'Too many account registrations from this network. Please try again later.',
+});
+
 // Register as a citizen (citizens cannot register as staff or admin)
-router.post('/register', async (req: Request, res: Response): Promise<void> => {
+router.post('/register', registerLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = RegisterSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -67,7 +82,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 });
 
 // Login
-router.post('/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/login', loginLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const parsed = LoginSchema.safeParse(req.body);
     if (!parsed.success) {
