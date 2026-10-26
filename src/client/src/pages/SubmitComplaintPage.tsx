@@ -52,6 +52,27 @@ export const SubmitComplaintPage: React.FC = () => {
 
   const [directUploadEnabled, setDirectUploadEnabled] = useState(false);
 
+  // Dynamic triage preview based on citizen input keywords
+  const triagePreview = React.useMemo(() => {
+    const combined = `${title} ${description}`.toLowerCase();
+    if (combined.includes('water') || combined.includes('pipe') || combined.includes('burst') || combined.includes('leak') || combined.includes('contamination')) {
+      return { dept: 'Water Supply', urgency: 'High Urgency (Immediate Dispatch)', sla: '12-24h target', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' };
+    }
+    if (combined.includes('pothole') || combined.includes('road') || combined.includes('asphalt') || combined.includes('footpath') || combined.includes('curb')) {
+      return { dept: 'Roads & Public Works', urgency: 'Standard Priority', sla: '48h target', badgeClass: 'bg-amber-50 text-amber-800 border-amber-200' };
+    }
+    if (combined.includes('light') || combined.includes('lamp') || combined.includes('dark') || combined.includes('pole') || combined.includes('wire') || combined.includes('electrical')) {
+      return { dept: 'Electrical & Streetlighting', urgency: 'Night Safety Priority', sla: '24h target', badgeClass: 'bg-yellow-50 text-yellow-800 border-yellow-200' };
+    }
+    if (combined.includes('drain') || combined.includes('sewer') || combined.includes('flood') || combined.includes('gutter') || combined.includes('manhole')) {
+      return { dept: 'Drainage & Sewage', urgency: 'Sanitation Priority', sla: '24h target', badgeClass: 'bg-cyan-50 text-cyan-800 border-cyan-200' };
+    }
+    if (combined.includes('garbage') || combined.includes('trash') || combined.includes('waste') || combined.includes('litter') || combined.includes('dump')) {
+      return { dept: 'Sanitation & Solid Waste', urgency: 'Routine Route', sla: '24h target', badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+    }
+    return null;
+  }, [title, description]);
+
   useEffect(() => {
     api.getServiceAreas()
       .then((areas) => {
@@ -360,37 +381,90 @@ export const SubmitComplaintPage: React.FC = () => {
           </div>
 
           <div>
-            <FormLabel htmlFor="title" required>
-              Issue Title
-            </FormLabel>
+            <div className="flex items-center justify-between mb-1.5">
+              <FormLabel htmlFor="title" required className="mb-0">
+                Issue Title
+              </FormLabel>
+              <span
+                id="title-counter"
+                aria-live="polite"
+                className={`text-xs font-mono font-medium ${
+                  title.length === 0
+                    ? 'text-slate-400'
+                    : title.length < 5
+                    ? 'text-amber-600'
+                    : title.length > 100
+                    ? 'text-amber-600'
+                    : 'text-emerald-600'
+                }`}
+              >
+                {title.length}/120 characters {title.length > 0 && title.length < 5 && '(min 5)'}
+              </span>
+            </div>
             <Input
               id="title"
               type="text"
               required
+              minLength={5}
+              maxLength={120}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Deep pothole causing vehicular damage"
               disabled={submitting}
+              aria-describedby="title-counter"
             />
             <FormHelp>A concise, descriptive summary of the problem.</FormHelp>
           </div>
 
           <div>
-            <FormLabel htmlFor="description" required>
-              Detailed Description
-            </FormLabel>
+            <div className="flex items-center justify-between mb-1.5">
+              <FormLabel htmlFor="description" required className="mb-0">
+                Detailed Description
+              </FormLabel>
+              <span
+                id="desc-counter"
+                aria-live="polite"
+                className={`text-xs font-mono font-medium ${
+                  description.length === 0
+                    ? 'text-slate-400'
+                    : description.length < 15
+                    ? 'text-amber-600'
+                    : 'text-emerald-600'
+                }`}
+              >
+                {description.length}/3000 characters {description.length > 0 && description.length < 15 && '(min 15)'}
+              </span>
+            </div>
             <Textarea
               id="description"
               required
+              minLength={15}
+              maxLength={3000}
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe what happened, any immediate safety risks to pedestrians or vehicles, visible water pooling, or deterioration..."
               disabled={submitting}
+              aria-describedby="desc-counter"
             />
             <FormHelp>
               Include dimensions, severity, or hazards (minimum 15 characters). Accurate details ensure proper classification.
             </FormHelp>
+
+            {/* Live triage preview based on detected keywords */}
+            {triagePreview && (
+              <div className={`mt-3 p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${triagePreview.badgeClass}`}>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 shrink-0 text-current" />
+                  <span>
+                    Likely department: <strong>{triagePreview.dept}</strong> &bull; {triagePreview.urgency}
+                  </span>
+                </div>
+                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-white/70 border border-current/20">
+                  {triagePreview.sla}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
