@@ -1,0 +1,208 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+enum Role {
+  CITIZEN
+  STAFF
+  ADMIN
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum AnalysisState {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReviewState {
+  NOT_REQUIRED
+  REQUIRED
+  APPROVED
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String          @unique
+  passwordHash  String
+  name          String
+  role          Role            @default(CITIZEN)
+  departmentId  String?
+  department    Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  complaints    Complaint[]     @relation("CitizenComplaints")
+  statusHistory StatusHistory[] @relation("ChangedByStatusHistory")
+  auditEvents   AuditEvent[]    @relation("UserAuditEvents")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([role])
+  @@index([departmentId])
+}
+
+model Department {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  code         String        @unique
+  description  String
+  staff        User[]
+  complaints   Complaint[]
+  routingRules RoutingRule[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ServiceArea {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  code         String        @unique
+  description  String
+  complaints   Complaint[]
+  routingRules RoutingRule[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  code         String        @unique
+  description  String
+  keywords     String        @default("")
+  complaints   Complaint[]
+  routingRules RoutingRule[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model RoutingRule {
+  id            String      @id @default(cuid())
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  serviceAreaId String
+  serviceArea   ServiceArea @relation(fields: [serviceAreaId], references: [id], onDelete: Cascade)
+  departmentId  String
+  department    Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([categoryId, serviceAreaId])
+  @@index([categoryId])
+  @@index([serviceAreaId])
+  @@index([departmentId])
+}
+
+model Complaint {
+  id                       String          @id @default(cuid())
+  reference                String          @unique
+  title                    String
+  description              String
+  address                  String
+  serviceAreaId            String
+  serviceArea              ServiceArea     @relation(fields: [serviceAreaId], references: [id])
+  categoryId               String?
+  category                 Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  departmentId             String?
+  department               Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  citizenId                String
+  citizen                  User            @relation("CitizenComplaints", fields: [citizenId], references: [id], onDelete: Cascade)
+  firstNoticedDate         DateTime?
+  status                   ComplaintStatus @default(SUBMITTED)
+  analysisState            AnalysisState   @default(PENDING)
+  reviewState              ReviewState     @default(NOT_REQUIRED)
+  analysisProvider         String?
+  analysisVersion          String?
+  classificationConfidence Float?
+  aiRationale              String?
+  
+  // Scoring (0 - 10)
+  priority                 Float           @default(0)
+  urgency                  Float           @default(0)
+  feasibility              Float           @default(0)
+
+  // Human Overrides
+  overridePriority         Float?
+  overrideUrgency          Float?
+  overrideFeasibility      Float?
+  overrideReason           String?
+  overriddenById           String?
+  overriddenAt             DateTime?
+
+  // Resolution
+  resolvedAt               DateTime?
+  resolutionNote           String?
+
+  // Timestamps
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  // Relations
+  attachments              Attachment[]
+  statusHistory            StatusHistory[]
+  auditEvents              AuditEvent[]
+
+  @@index([status])
+  @@index([citizenId])
+  @@index([departmentId])
+  @@index([categoryId])
+  @@index([serviceAreaId])
+  @@index([reviewState])
+  @@index([createdAt])
+}
+
+model Attachment {
+  id               String    @id @default(cuid())
+  complaintId      String
+  complaint        Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  originalFilename String
+  storageFilename  String
+  mimeType         String
+  fileSize         Int
+  createdAt        DateTime  @default(now())
+
+  @@index([complaintId])
+}
+
+model StatusHistory {
+  id               String          @id @default(cuid())
+  complaintId      String
+  complaint        Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  fromStatus       ComplaintStatus?
+  toStatus         ComplaintStatus
+  note             String?
+  isCitizenVisible Boolean         @default(true)
+  changedById      String
+  changedBy        User            @relation("ChangedByStatusHistory", fields: [changedById], references: [id])
+  createdAt        DateTime        @default(now())
+
+  @@index([complaintId])
+  @@index([changedById])
+}
+
+model AuditEvent {
+  id          String     @id @default(cuid())
+  complaintId String?
+  complaint   Complaint? @relation(fields: [complaintId], references: [id], onDelete: SetNull)
+  actorId     String
+  actor       User       @relation("UserAuditEvents", fields: [actorId], references: [id])
+  action      String
+  details     String
+  createdAt   DateTime   @default(now())
+
+  @@index([complaintId])
+  @@index([actorId])
+  @@index([createdAt])
+}
