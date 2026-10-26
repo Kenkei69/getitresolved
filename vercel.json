@@ -3,7 +3,7 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "dist/client",
   "functions": {
-    "api/index.ts": {
+    "api/**/*.ts": {
       "includeFiles": "node_modules/.prisma/client/**"
     }
   },

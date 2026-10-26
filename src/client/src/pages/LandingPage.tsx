@@ -33,7 +33,7 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-civic-800 border border-civic-200 shadow-xs">
             <Building2 className="w-4 h-4 text-civic-600" aria-hidden="true" />
-            <span>Official Civic Resolution Portal</span>
+            <span>Civic Issue Resolution Platform • Open Demonstration</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
@@ -45,7 +45,7 @@ export const LandingPage: React.FC = () => {
           </h1>
 
           <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            From damaged roads and leaking water mains to faulty streetlights, blocked drainage, and missed sanitation pickups — submit municipal concerns in minutes and track accountable resolution step by step.
+            From damaged road surfaces and leaking water mains to faulty streetlights, clogged storm drains, and missed waste collection — submit neighborhood issues easily and track accountable municipal follow-up.
           </p>
 
           {/* Primary & Secondary Actions */}
@@ -133,12 +133,12 @@ export const LandingPage: React.FC = () => {
             {/* Step 2 in journey */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span>2. Automated Triage</span>
+                <span>2. Department Assignment</span>
                 <span className="w-2 h-2 rounded-full bg-blue-500" />
               </div>
-              <div className="font-bold text-sm text-slate-900">Categorized & Routed</div>
+              <div className="font-bold text-sm text-slate-900">Categorized & Assigned</div>
               <p className="text-xs text-slate-600 leading-normal">
-                AI and deterministic rules classify as Roads & Sidewalks, routed to Public Works.
+                Issue categorized by topic and routed to the responsible Roads & Sidewalks maintenance crew.
               </p>
               <div className="text-[11px] text-slate-400 font-medium">Status: ASSIGNED</div>
             </div>
@@ -307,13 +307,13 @@ export const LandingPage: React.FC = () => {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-civic-700">
               <Sparkles className="w-4 h-4 text-civic-600" aria-hidden="true" />
-              <span>Prioritization Methodology</span>
+              <span>Prioritization Standards</span>
             </div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Fair, Transparent Queue Management
+              Fair, Transparent Queue Prioritization
             </h2>
             <p className="text-sm text-slate-600 leading-relaxed">
-              To prevent critical safety issues from getting lost in high volumes of submissions, complaints receive an objective score calculated from three weighted factors:
+              To ensure safety-critical hazards receive prompt attention without subjective bias, complaints are prioritized by safety hazard, neighborhood disruption, and the length of time awaiting resolution:
             </p>
           </div>
 
@@ -364,7 +364,7 @@ export const LandingPage: React.FC = () => {
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-civic-950 text-white rounded-3xl p-8 sm:p-12 shadow-md text-center space-y-6">
           <div className="space-y-2 max-w-2xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Ready to Report an Issue in Your Neighborhood?
             </h2>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">

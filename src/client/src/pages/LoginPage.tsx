@@ -99,9 +99,17 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <FormLabel htmlFor="password" required>
-                Password
-              </FormLabel>
+              <div className="flex items-center justify-between">
+                <FormLabel htmlFor="password" required>
+                  Password
+                </FormLabel>
+                <Link
+                  to="/support"
+                  className="text-xs font-medium text-civic-700 hover:text-civic-900 hover:underline"
+                >
+                  Need login help?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="password"

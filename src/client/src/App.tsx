@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/common/Navbar';
@@ -6,15 +6,43 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { CitizenDashboard } from './pages/CitizenDashboard';
-import { SubmitComplaintPage } from './pages/SubmitComplaintPage';
-import { ComplaintDetailPage } from './pages/ComplaintDetailPage';
 import { StaffDashboard } from './pages/StaffDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { ManualReviewPage } from './pages/ManualReviewPage';
-import { AdminStaffPage } from './pages/AdminStaffPage';
-import { AuditLogsPage } from './pages/AuditLogsPage';
-import { HowScoringWorksPage } from './pages/HowScoringWorksPage';
+import { Footer } from './components/common/Footer';
 import { NotFoundPage } from './pages/NotFoundPage';
+
+// Route-based code splitting for substantial sub-pages and administrative workflows
+const SubmitComplaintPage = lazy(() =>
+  import('./pages/SubmitComplaintPage').then((m) => ({ default: m.SubmitComplaintPage }))
+);
+const ComplaintDetailPage = lazy(() =>
+  import('./pages/ComplaintDetailPage').then((m) => ({ default: m.ComplaintDetailPage }))
+);
+const ManualReviewPage = lazy(() =>
+  import('./pages/ManualReviewPage').then((m) => ({ default: m.ManualReviewPage }))
+);
+const AdminStaffPage = lazy(() =>
+  import('./pages/AdminStaffPage').then((m) => ({ default: m.AdminStaffPage }))
+);
+const AuditLogsPage = lazy(() =>
+  import('./pages/AuditLogsPage').then((m) => ({ default: m.AuditLogsPage }))
+);
+const HowScoringWorksPage = lazy(() =>
+  import('./pages/HowScoringWorksPage').then((m) => ({ default: m.HowScoringWorksPage }))
+);
+const PrivacyPolicyPage = lazy(() =>
+  import('./pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage }))
+);
+const SupportPage = lazy(() =>
+  import('./pages/SupportPage').then((m) => ({ default: m.SupportPage }))
+);
+
+const PageFallback: React.FC = () => (
+  <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-slate-500 text-sm">
+    <div className="w-8 h-8 rounded-full border-2 border-civic-600 border-t-transparent animate-spin" />
+    <span>Loading page...</span>
+  </div>
+);
 
 // Route guard for authenticated users
 const ProtectedRoute: React.FC<{
@@ -54,12 +82,15 @@ export const AppContent: React.FC = () => {
       </a>
       <Navbar />
       <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
-        <Routes>
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/scoring-guide" element={<HowScoringWorksPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/support" element={<SupportPage />} />
 
           {/* Citizen Routes */}
           <Route
@@ -144,25 +175,10 @@ export const AppContent: React.FC = () => {
           {/* 404 Route */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+      </Suspense>
       </main>
 
-      {/* Municipal Civic Service Footer */}
-      <footer className="bg-white border-t border-slate-200 py-8 mt-16 text-center text-sm text-slate-500">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
-          <div className="flex flex-wrap items-center justify-center gap-4 text-slate-600 font-medium">
-            <span>Getitresolved</span>
-            <span>&bull;</span>
-            <span>Municipal Citizen Service Portal</span>
-            <span>&bull;</span>
-            <a href="/scoring-guide" className="hover:text-civic-700 hover:underline">
-              Scoring Methodology
-            </a>
-          </div>
-          <p className="text-xs text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Transparent municipal issue resolution featuring automated triage, deterministic department routing, and multi-factor impact prioritization.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

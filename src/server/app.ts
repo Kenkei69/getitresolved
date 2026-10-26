@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
@@ -31,6 +32,30 @@ export function createApp() {
 
   // Trust proxy for Vercel, Docker, reverse proxies
   app.set('trust proxy', 1);
+
+  // Request Correlation ID and Structured Logging (Safe: no passwords, tokens, or private images logged)
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const rawId = req.headers['x-request-id'];
+    const requestId =
+      typeof rawId === 'string' && rawId.length > 0 && rawId.length < 100
+        ? rawId
+        : crypto.randomUUID();
+
+    (req as any).id = requestId;
+    res.setHeader('X-Request-Id', requestId);
+
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      if (process.env.NODE_ENV !== 'test') {
+        console.log(
+          `[HTTP] ${req.method} ${req.originalUrl || req.url} ${res.statusCode} ${duration}ms reqId=${requestId}`
+        );
+      }
+    });
+
+    next();
+  });
 
   // Security Headers Middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -165,8 +190,18 @@ export function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/stats', statsRoutes);
 
+  // Root /api operational endpoint
+  app.get('/api', (_req: Request, res: Response) => {
+    res.json({
+      success: true,
+      service: 'Getitresolved Civic Management API',
+      status: 'operational',
+      version: '1.0.0',
+    });
+  });
+
   // Return JSON 404 for unknown /api/* requests
-  app.all('/api/*', (_req: Request, res: Response) => {
+  app.all(['/api', '/api/*'], (_req: Request, res: Response) => {
     res.status(404).json({ success: false, error: 'API endpoint not found' });
   });
 

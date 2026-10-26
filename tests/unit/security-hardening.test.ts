@@ -246,4 +246,30 @@ describe('Production Security & Storage Hardening', () => {
     assert.strictEqual(r4.remaining, 0);
     assert.ok(r4.retryAfterSeconds > 0);
   });
+
+  it('provides lightweight /api status and issues request correlation ID', async () => {
+    const res = await request(app).get('/api');
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.success, true);
+    assert.strictEqual(res.body.status, 'operational');
+    assert.ok(res.headers['x-request-id'], 'Must include X-Request-Id header');
+  });
+
+  it('returns structured JSON 404 for unknown /api subpaths', async () => {
+    const res = await request(app).get('/api/definitely-not-a-valid-route');
+    assert.strictEqual(res.status, 404);
+    assert.strictEqual(res.body.success, false);
+    assert.strictEqual(res.body.error, 'API endpoint not found');
+  });
+
+  it('readiness endpoint safely reports dependency health without secret disclosure', async () => {
+    const res = await request(app).get('/api/ready');
+    assert.ok([200, 503].includes(res.status));
+    assert.ok(res.body.status);
+    assert.ok(res.body.database);
+    // Never expose secret strings or tokens in readiness payload
+    const bodyStr = JSON.stringify(res.body);
+    assert.strictEqual(bodyStr.includes('Admin123!'), false);
+    assert.strictEqual(bodyStr.includes('postgres://'), false);
+  });
 });

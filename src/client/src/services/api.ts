@@ -42,10 +42,37 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     credentials: 'include', // sends cookies
   });
 
-  const data: ApiResponse<T> = await res.json().catch(() => ({
-    success: false,
-    error: `HTTP Error ${res.status}: Failed to parse server response.`,
-  }));
+  let data: ApiResponse<T>;
+  const contentType = res.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      data = await res.json();
+    } catch {
+      data = {
+        success: false,
+        error: `Invalid JSON received from server (HTTP ${res.status}).`,
+      };
+    }
+  } else {
+    // Gracefully handle non-JSON responses from serverless infrastructure / gateways
+    const rawText = await res.text().catch(() => '');
+    let friendlyMessage = `The server encountered a temporary issue (HTTP ${res.status}). Please try again in a few moments.`;
+
+    if (res.status === 500 && rawText.includes('FUNCTION_INVOCATION_FAILED')) {
+      friendlyMessage =
+        'The backend service is currently initializing or awaiting environment configuration. Please verify server readiness or retry shortly.';
+    } else if (res.status === 503) {
+      friendlyMessage = 'The civic service is temporarily offline for maintenance. Please check back shortly.';
+    } else if (res.status === 502 || res.status === 504) {
+      friendlyMessage = 'Network gateway timeout. Please check your internet connection and retry.';
+    }
+
+    data = {
+      success: false,
+      error: friendlyMessage,
+    };
+  }
 
   if (!res.ok || !data.success) {
     throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
