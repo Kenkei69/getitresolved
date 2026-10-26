@@ -27,7 +27,7 @@ import { isBlobStorageConfigured } from './services/storage';
 export function createApp() {
   const app = express();
 
-  // Trust proxy for Vercel, Docker, Replit, reverse proxies
+  // Trust proxy for Vercel, Docker, reverse proxies
   app.set('trust proxy', 1);
 
   // Dynamic CORS restricted strictly to explicitly configured application origins

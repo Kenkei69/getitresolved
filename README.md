@@ -125,29 +125,98 @@ A star is awarded **strictly when a score exceeds 7.0** ($> 7.0$). A score of ex
 Run the complete test suite:
 
 ```bash
-# Run 23 Unit & Integration Tests
+# Run 30 Unit & Integration Tests
 npm test
 
 # Run End-to-End Browser Journeys (Playwright & Headless Chromium)
 npx tsx --test tests/e2e/e2e-browser.test.ts
 ```
 
-All 23 backend tests and 4 end-to-end browser journeys verify:
+All 30 backend tests and 4 end-to-end browser journeys verify:
 - Accurate duration scoring and resolved age freezing.
 - Strict $> 7.0$ star threshold boundary logic.
 - Cross-user and cross-department access restrictions.
 - Mandatory resolution notes and explainability for state reversals.
 - Automated AI fallback and manual review diversion.
 - Full citizen submission &rarr; staff progress &rarr; resolution lifecycle.
+- Production storage hardening, pre-uploaded attachment scoping, and credentialed CORS restriction.
 
 ---
 
-## 7. Replit Hosting & Public Access Diagnostics
+## 7. System Architecture & Workflows
 
-### Verified Root Cause of Replit "Log in to access a private app"
-When viewing a development link (`https://<repl-id>-00-<cluster>.sisko.replit.dev/`), Replit's edge authentication gate protects private Repls by requiring visitors to log into Replit.
+### 7.1. Complaint Lifecycle Workflow
 
-### Resolution Steps to Make External Links Publicly Accessible:
-1. **Option A (Make Repl Public):** In the Replit workspace, click the Repl title at the top left &rarr; Settings &rarr; Change Privacy to **Public**. External visitors will immediately be able to access the application without any Replit login requirement.
-2. **Option B (Replit Deployments):** Click **Deploy** in the top-right of Replit and deploy as an **Autoscale Deployment** using the configured `.replit` file. This produces a persistent public URL (`https://<app-name>.replit.app/`) designed for production traffic.
-3. The server binds to `0.0.0.0:5000` (or `process.env.PORT`), serves both the compiled Vite frontend and `/api` under one origin, and provides `/api/health` and `/api/ready` endpoints.
+```mermaid
+flowchart TD
+    A["Citizen Submits Complaint"] --> B["Validate Input (Zod, max 3 photos, 5MB)"]
+    B --> C["Persist Complaint (status: SUBMITTED, analysis: PENDING)"]
+    C --> D{"AI Analysis Mode"}
+    D -->|"Gemini Configured"| E["Gemini Multimodal API (Structured JSON)"]
+    D -->|"Key Absent / Timeout"| F["Deterministic Rule Engine (Keyword Heuristics)"]
+    E --> G{"Confidence >= 0.75 & Mapped?"}
+    F --> G
+    G -->|"Yes"| H["Assign Department (status: ASSIGNED)"]
+    G -->|"No / 'Other'"| I["Divert to Admin Manual Review Queue (review: REQUIRED)"]
+    I --> J["Administrator Assigns Category & Department"]
+    J --> H
+    H --> K["Department Staff Claims / Updates (status: IN_PROGRESS)"]
+    K --> L["Resolution with Citizen-Visible Notes (status: RESOLVED)"]
+```
+
+### 7.2. Multi-Factor Scoring & Strict Star Thresholds
+
+```mermaid
+flowchart LR
+    subgraph Inputs["Scoring Inputs (0-10)"]
+        P["Priority (Civic Disruption)"]
+        U["Urgency (Safety / Accident Risk)"]
+        D["Duration Score: min(10, floor(days / 3))"]
+        F["Feasibility (Provisional Assessment)"]
+    end
+
+    subgraph Calculation["Core Formula"]
+        Core["Core Score = round(0.45*P + 0.40*U + 0.15*D, 1)"]
+    end
+
+    subgraph Stars["Objective Star Badges (> 7.0 strictly)"]
+        SP["Priority > 7.0: Red Star"]
+        SU["Urgency > 7.0: Orange Star"]
+        SD["Duration > 7.0: Pink Star"]
+        SF["Feasibility > 7.0: Green Star"]
+    end
+
+    P --> Core
+    U --> Core
+    D --> Core
+    P --> SP
+    U --> SU
+    D --> SD
+    F --> SF
+```
+
+### 7.3. Vercel Cloud Serverless Architecture
+
+```mermaid
+flowchart TD
+    Client["Browser (React 18 + Tailwind SPA)"] --> Edge["Vercel Edge Network / CDN"]
+    Edge -->|"Static Assets (*.js, *.css, *.html)"| Dist["Static Client Build (dist/client)"]
+    Edge -->|"/api/* Requests"| Lambda["Express Serverless Function (api/index.ts)"]
+    Lambda -->|"Connection Pool (DATABASE_URL)"| PgPool["Managed PostgreSQL (Neon / Supabase)"]
+    Lambda -->|"Direct Access (DIRECT_URL)"| Migrations["Prisma Migrate Deploy"]
+    Lambda -->|"Private Token (BLOB_READ_WRITE_TOKEN)"| BlobStore["Private Vercel Blob Store"]
+    Client -->|"Direct Upload (Bypassing 4.5MB limit)"| BlobStore
+```
+
+---
+
+## 8. Production Deployment & Security Configuration
+
+Getitresolved is configured for high-performance serverless deployment on Vercel:
+
+- **Single-Origin Deployment:** Express handles API routes under `/api`, while Vite SPA assets (`dist/client`) and client routes are served from the edge with fallback to `/index.html`.
+- **Database Connection Pooling:** Managed PostgreSQL (Neon, Supabase, or AWS RDS) uses transaction-mode pooling via `DATABASE_URL` for serverless functions, alongside `DIRECT_URL` for running migrations (`npx prisma migrate deploy`).
+- **Private Object Storage:** Photos are stored in a Private Vercel Blob store (`access: 'private'`). Files are never accessible via raw unauthenticated URLs; all access is authorized and streamed through Express endpoints with strict role-based controls.
+- **Direct-to-Storage Uploads:** Direct client uploads to Vercel Blob bypass the serverless 4.5 MB request payload limit while enforcing user ownership and strict file limits (max 3 images, 5 MB each).
+- **Environment Isolation:** Separate Preview and Production databases, distinct session secrets, and isolated storage tokens ensure complete staging/production safety.
+
