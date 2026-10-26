@@ -1,9 +1,9 @@
-import { createApp } from '../src/server/app';
-
 let appInstance: any = null;
 
 function getApp() {
   if (!appInstance) {
+    // Lazily load express app so any module loading errors are caught in the handler try/catch
+    const { createApp } = require('../src/server/app');
     appInstance = createApp();
   }
   return appInstance;

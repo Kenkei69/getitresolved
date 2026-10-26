@@ -4,10 +4,29 @@
   "outputDirectory": "dist/client",
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "node_modules/.prisma/client/**"
+      "includeFiles": [
+        "prisma/schema.prisma",
+        "node_modules/.prisma/**/*",
+        "node_modules/@prisma/client/**/*"
+      ]
+    },
+    "api/*.ts": {
+      "includeFiles": [
+        "prisma/schema.prisma",
+        "node_modules/.prisma/**/*",
+        "node_modules/@prisma/client/**/*"
+      ]
     }
   },
   "rewrites": [
+    {
+      "source": "/api/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/api/ready",
+      "destination": "/api/ready"
+    },
     {
       "source": "/api",
       "destination": "/api"
