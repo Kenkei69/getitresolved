@@ -36,6 +36,9 @@ const PrivacyPolicyPage = lazy(() =>
 const SupportPage = lazy(() =>
   import('./pages/SupportPage').then((m) => ({ default: m.SupportPage }))
 );
+const SystemStatusPage = lazy(() =>
+  import('./pages/SystemStatusPage').then((m) => ({ default: m.SystemStatusPage }))
+);
 
 const PageFallback: React.FC = () => (
   <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-slate-500 text-sm">
@@ -91,6 +94,7 @@ export const AppContent: React.FC = () => {
           <Route path="/scoring-guide" element={<HowScoringWorksPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/support" element={<SupportPage />} />
+          <Route path="/system-status" element={<SystemStatusPage />} />
 
           {/* Citizen Routes */}
           <Route

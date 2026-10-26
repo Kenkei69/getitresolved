@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Shield, HelpCircle, FileText, HeartHandshake } from 'lucide-react';
+import { Building2, Shield, HelpCircle, FileText, HeartHandshake, Activity } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -63,6 +63,12 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/system-status" className="hover:text-civic-700 hover:underline transition-colors flex items-center gap-1">
+                  <Activity className="w-3.5 h-3.5 text-civic-600" />
+                  <span>Platform System Status</span>
+                </Link>
+              </li>
+              <li>
                 <span className="text-xs text-slate-400 block pt-1">
                   Contact: <span className="font-mono text-slate-600">admin@civicresolve.gov</span>
                 </span>
@@ -87,6 +93,10 @@ export const Footer: React.FC = () => {
             <span>&bull;</span>
             <Link to="/scoring-guide" className="hover:text-civic-700 hover:underline">
               Prioritization
+            </Link>
+            <span>&bull;</span>
+            <Link to="/system-status" className="hover:text-civic-700 hover:underline">
+              Status
             </Link>
           </div>
         </div>

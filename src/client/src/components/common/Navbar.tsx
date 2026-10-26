@@ -13,6 +13,7 @@ import {
   KeyRound,
   Users,
   ClipboardList,
+  Activity,
 } from 'lucide-react';
 import { DemoCredentialsModal } from './DemoCredentialsModal';
 
@@ -204,6 +205,9 @@ export const Navbar: React.FC = () => {
                   </Link>
                   <Link to="/scoring-guide" className={linkClass('/scoring-guide')}>
                     How Scoring Works
+                  </Link>
+                  <Link to="/system-status" className={linkClass('/system-status')}>
+                    Status
                   </Link>
                   <Link to="/support" className={linkClass('/support')}>
                     Support
@@ -443,6 +447,14 @@ export const Navbar: React.FC = () => {
                 >
                   <HelpCircle className="w-5 h-5 text-slate-400" />
                   How Scoring Works
+                </Link>
+                <Link
+                  to="/system-status"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={mobileLinkClass('/system-status')}
+                >
+                  <Activity className="w-5 h-5 text-slate-400" />
+                  System Status
                 </Link>
                 <Link
                   to="/support"
