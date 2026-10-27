@@ -1,7 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export async function logAuditEvent(
-  prisma: PrismaClient,
+  db: DbClient,
   params: {
     complaintId?: string | null;
     actorId: string;
@@ -10,7 +12,7 @@ export async function logAuditEvent(
   }
 ) {
   try {
-    return await prisma.auditEvent.create({
+    return await db.auditEvent.create({
       data: {
         complaintId: params.complaintId || null,
         actorId: params.actorId,
@@ -22,3 +24,4 @@ export async function logAuditEvent(
     console.error('[Audit Error] Failed to record audit event:', err);
   }
 }
+

@@ -18,13 +18,14 @@ describe('Complaint Lifecycle & Auditing Journey', () => {
     assert.ok(northArea);
 
     // 2. Citizen submits streetlight complaint
+    const testId = Date.now();
     const submitRes = await request(app)
       .post('/api/complaints')
       .set('Cookie', citizenCookie)
       .send({
-        title: 'Broken streetlight on Pine Avenue',
+        title: `Broken streetlight on Pine Avenue ${testId}`,
         description: 'The pole lamp post is completely dark at night and light bulb is shattered.',
-        address: '104 Pine Avenue',
+        address: `104 Pine Avenue #${testId}`,
         serviceAreaId: northArea.id,
       });
 
@@ -171,5 +172,77 @@ describe('Complaint Lifecycle & Auditing Journey', () => {
     assert.strictEqual(overrideRes.body.data.scores.hasOverrides, true);
     assert.strictEqual(overrideRes.body.data.scores.effectivePriority, 9.5);
     assert.strictEqual(overrideRes.body.data.overrideReason, 'Emergency school evacuation route affected; manual priority upgrade.');
+  });
+
+  it('rejects status update with HTTP 409 when expectedStatus conflicts with current state', async () => {
+    // 1. Staff logs in
+    const staffLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'staff.electrical@civicresolve.gov', password: 'Staff123!' });
+    const staffCookie = staffLogin.headers['set-cookie'];
+
+    // Find an electrical complaint currently in ASSIGNED
+    const comp = await prisma.complaint.findFirst({
+      where: { department: { code: 'ELECTRICAL' }, status: 'ASSIGNED' },
+    });
+    assert.ok(comp);
+
+    // 2. Client sends an update claiming expectedStatus was 'IN_PROGRESS' (stale client state)
+    const conflictRes = await request(app)
+      .patch(`/api/complaints/${comp.id}/status`)
+      .set('Cookie', staffCookie)
+      .send({
+        toStatus: 'RESOLVED',
+        note: 'Attempting to resolve based on stale status.',
+        expectedStatus: 'IN_PROGRESS', // Mismatch! Actual is ASSIGNED
+      });
+
+    assert.strictEqual(conflictRes.status, 409);
+    assert.strictEqual(conflictRes.body.code, 'CONFLICT');
+    assert.match(conflictRes.body.error, /Conflict: This complaint status was updated/);
+  });
+
+  it('deduplicates rapid repeated complaint submissions within 60s from the same citizen', async () => {
+    // 1. Citizen logs in
+    const citizenLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'citizen.jane@example.com', password: 'Citizen123!' });
+    const citizenCookie = citizenLogin.headers['set-cookie'];
+
+    const northArea = await prisma.serviceArea.findUnique({ where: { code: 'NORTH' } });
+    assert.ok(northArea);
+
+    const uniqueTitle = `Burst water pipe on Maple Lane ${Date.now()}`;
+    const uniqueAddress = `55 Maple Lane Apt ${Math.floor(Math.random() * 900) + 100}`;
+
+    // 2. First submission
+    const firstRes = await request(app)
+      .post('/api/complaints')
+      .set('Cookie', citizenCookie)
+      .send({
+        title: uniqueTitle,
+        description: 'Water spraying rapidly onto the roadway and flooding sidewalk.',
+        address: uniqueAddress,
+        serviceAreaId: northArea.id,
+      });
+
+    assert.strictEqual(firstRes.status, 201);
+    const firstComplaint = firstRes.body.data;
+
+    // 3. Second immediate submission with identical title & address from same citizen
+    const secondRes = await request(app)
+      .post('/api/complaints')
+      .set('Cookie', citizenCookie)
+      .send({
+        title: uniqueTitle,
+        description: 'Water spraying rapidly onto the roadway and flooding sidewalk.',
+        address: uniqueAddress,
+        serviceAreaId: northArea.id,
+      });
+
+    assert.strictEqual(secondRes.status, 200);
+    assert.strictEqual(secondRes.body.isDuplicate, true);
+    assert.strictEqual(secondRes.body.data.id, firstComplaint.id);
+    assert.strictEqual(secondRes.body.data.reference, firstComplaint.reference);
   });
 });

@@ -225,6 +225,23 @@ export function createApp() {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error('[Unhandled Server Error]', err);
     if (res.headersSent) return;
+
+    // Detect Prisma / Database connection or initialization errors
+    const isDbError =
+      err?.name === 'PrismaClientInitializationError' ||
+      err?.name === 'PrismaClientKnownRequestError' ||
+      err?.message?.includes('DATABASE_URL') ||
+      err?.message?.includes("Can't reach database server");
+
+    if (isDbError) {
+      res.status(503).json({
+        success: false,
+        error: 'The database service is currently unreachable or initializing. Please verify database connectivity.',
+        code: 'DATABASE_UNAVAILABLE',
+      });
+      return;
+    }
+
     const statusCode = err.status || err.statusCode || 500;
     res.status(statusCode).json({
       success: false,
