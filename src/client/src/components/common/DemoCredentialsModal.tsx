@@ -16,7 +16,7 @@ export const DemoCredentialsModal: React.FC<DemoCredentialsModalProps> = ({
   onClose,
   onSelectFill,
 }) => {
-  const { login, enableDemoAccounts } = useAuth();
+  const { login, enableDemoAccounts, isProduction } = useAuth();
   const navigate = useNavigate();
   const [loadingEmail, setLoadingEmail] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
@@ -24,9 +24,6 @@ export const DemoCredentialsModal: React.FC<DemoCredentialsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'citizen' | 'staff_admin'>('citizen');
 
   if (!enableDemoAccounts) return null;
-
-  // In production, hide privileged staff and administrator demo credentials from the public modal
-  const isProduction = process.env.NODE_ENV === 'production';
 
   const citizenAccounts = [
     {

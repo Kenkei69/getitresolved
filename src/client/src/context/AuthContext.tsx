@@ -7,6 +7,7 @@ interface AuthContextType {
   user: SafeUser | null;
   loading: boolean;
   enableDemoAccounts: boolean;
+  isProduction: boolean;
   login: (input: LoginInput) => Promise<SafeUser>;
   register: (input: RegisterInput) => Promise<SafeUser>;
   logout: () => Promise<void>;
@@ -19,6 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<SafeUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [enableDemoAccounts, setEnableDemoAccounts] = useState(true);
+  const [isProduction, setIsProduction] = useState<boolean>(Boolean(import.meta.env.PROD));
 
   const refreshUser = async () => {
     try {
@@ -35,8 +37,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUser();
     api.getConfig()
       .then((cfg) => {
-        if (cfg && typeof cfg.enableDemoAccounts === 'boolean') {
-          setEnableDemoAccounts(cfg.enableDemoAccounts);
+        if (cfg) {
+          if (typeof cfg.enableDemoAccounts === 'boolean') {
+            setEnableDemoAccounts(cfg.enableDemoAccounts);
+          }
+          if (cfg.environment) {
+            setIsProduction(cfg.environment === 'production' || Boolean(import.meta.env.PROD));
+          }
         }
       })
       .catch(() => {});
@@ -64,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, enableDemoAccounts, login, register, logout, refreshUser }}
+      value={{ user, loading, enableDemoAccounts, isProduction, login, register, logout, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

@@ -15,7 +15,6 @@ import {
   Lightbulb,
   Droplets,
   Truck,
-  Trees,
   HelpCircle,
   MapPin,
   Camera,
@@ -210,7 +209,7 @@ export const LandingPage: React.FC = () => {
               <div className="text-xs font-bold uppercase tracking-wider text-blue-700">Step 2</div>
               <h3 className="text-lg font-bold text-slate-900">Reach the Responsible Department</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Automated triage identifies the issue category, while deterministic municipal routing assigns it to the exact departmental queue. Ambiguous items route to human manual triage.
+                Automated triage identifies the issue category, while defined municipal routing rules assign it directly to the responsible departmental queue. Submissions requiring human judgment route to administrative review.
               </p>
             </div>
             <div className="pt-2 text-xs text-slate-400 font-medium border-t border-slate-100">
