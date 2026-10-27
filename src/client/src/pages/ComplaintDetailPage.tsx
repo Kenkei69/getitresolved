@@ -83,12 +83,26 @@ export const ComplaintDetailPage: React.FC = () => {
   const handleStatusUpdate = async (toStatus: any, note: string, isCitizenVisible: boolean, explanation?: string) => {
     if (!complaint) return;
     try {
-      await api.updateStatus(complaint.id, { toStatus, note, isCitizenVisible, explanation });
+      await api.updateStatus(complaint.id, {
+        toStatus,
+        note,
+        isCitizenVisible,
+        explanation,
+        expectedStatus: complaint.status,
+      });
       setActionNotice({ type: 'success', message: 'Status updated successfully.' });
       setTimeout(() => setActionNotice(null), 4000);
       await fetchComplaint();
     } catch (err: any) {
-      setActionNotice({ type: 'error', message: err.message || 'Failed to update status.' });
+      if (err.status === 409 || err.code === 'CONFLICT' || err.message?.includes('concurrently') || err.message?.includes('modified')) {
+        setActionNotice({
+          type: 'error',
+          message: 'Conflict: This complaint status was modified concurrently by another team member. Details have been refreshed.',
+        });
+        await fetchComplaint();
+      } else {
+        setActionNotice({ type: 'error', message: err.message || 'Failed to update status.' });
+      }
     }
   };
 

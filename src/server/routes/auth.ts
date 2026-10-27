@@ -77,6 +77,14 @@ router.post('/register', registerLimiter, async (req: Request, res: Response): P
     });
   } catch (err: any) {
     console.error('[Register Error]', err);
+    if (err?.name === 'PrismaClientInitializationError' || err?.message?.includes('DATABASE_URL')) {
+      res.status(503).json({
+        success: false,
+        error: 'The database service is currently unreachable. Please try again shortly.',
+        code: 'DATABASE_UNAVAILABLE',
+      });
+      return;
+    }
     res.status(500).json({ success: false, error: 'Failed to create account. Please try again.' });
   }
 });
@@ -153,6 +161,14 @@ router.post('/login', loginLimiter, async (req: Request, res: Response): Promise
     });
   } catch (err: any) {
     console.error('[Login Error]', err);
+    if (err?.name === 'PrismaClientInitializationError' || err?.message?.includes('DATABASE_URL')) {
+      res.status(503).json({
+        success: false,
+        error: 'The database service is currently unreachable or in standby. Please verify database connectivity.',
+        code: 'DATABASE_UNAVAILABLE',
+      });
+      return;
+    }
     res.status(500).json({ success: false, error: 'Login failed. Please try again later.' });
   }
 });

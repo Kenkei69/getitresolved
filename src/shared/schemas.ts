@@ -25,6 +25,7 @@ export const StatusUpdateSchema = z.object({
   note: z.string().trim().max(1000, 'Note cannot exceed 1000 characters').optional().nullable(),
   isCitizenVisible: z.boolean().default(true),
   explanation: z.string().trim().max(1000).optional(),
+  expectedStatus: z.string().optional(),
 }).refine((data) => {
   if (data.toStatus === 'RESOLVED') {
     return !!data.note && data.note.trim().length >= 5;

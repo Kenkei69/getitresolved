@@ -3,6 +3,9 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "dist/client",
   "functions": {
+    "api/*.js": {
+      "includeFiles": "node_modules/.prisma/client/**"
+    },
     "api/**/*.js": {
       "includeFiles": "node_modules/.prisma/client/**"
     }

@@ -69,7 +69,8 @@ var StatusUpdateSchema = import_zod.z.object({
   toStatus: import_zod.z.enum(["SUBMITTED", "ASSIGNED", "IN_PROGRESS", "RESOLVED"]),
   note: import_zod.z.string().trim().max(1e3, "Note cannot exceed 1000 characters").optional().nullable(),
   isCitizenVisible: import_zod.z.boolean().default(true),
-  explanation: import_zod.z.string().trim().max(1e3).optional()
+  explanation: import_zod.z.string().trim().max(1e3).optional(),
+  expectedStatus: import_zod.z.string().optional()
 }).refine((data) => {
   if (data.toStatus === "RESOLVED") {
     return !!data.note && data.note.trim().length >= 5;
@@ -315,9 +316,9 @@ function requireRole(...allowedRoles) {
 }
 
 // src/server/services/audit.ts
-async function logAuditEvent(prisma2, params) {
+async function logAuditEvent(db, params) {
   try {
-    return await prisma2.auditEvent.create({
+    return await db.auditEvent.create({
       data: {
         complaintId: params.complaintId || null,
         actorId: params.actorId,
@@ -502,6 +503,14 @@ router.post("/register", registerLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error("[Register Error]", err);
+    if (err?.name === "PrismaClientInitializationError" || err?.message?.includes("DATABASE_URL")) {
+      res.status(503).json({
+        success: false,
+        error: "The database service is currently unreachable. Please try again shortly.",
+        code: "DATABASE_UNAVAILABLE"
+      });
+      return;
+    }
     res.status(500).json({ success: false, error: "Failed to create account. Please try again." });
   }
 });
@@ -563,6 +572,14 @@ router.post("/login", loginLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error("[Login Error]", err);
+    if (err?.name === "PrismaClientInitializationError" || err?.message?.includes("DATABASE_URL")) {
+      res.status(503).json({
+        success: false,
+        error: "The database service is currently unreachable or in standby. Please verify database connectivity.",
+        code: "DATABASE_UNAVAILABLE"
+      });
+      return;
+    }
     res.status(500).json({ success: false, error: "Login failed. Please try again later." });
   }
 });
@@ -1536,6 +1553,31 @@ router3.post(
           }
         }
       }
+      const sixtySecondsAgo = new Date(Date.now() - 60 * 1e3);
+      const existingRecent = await prisma.complaint.findFirst({
+        where: {
+          citizenId: req.user.id,
+          title: title.trim(),
+          address: address.trim(),
+          createdAt: { gte: sixtySecondsAgo }
+        },
+        include: {
+          serviceArea: true,
+          category: true,
+          department: true,
+          attachments: true,
+          citizen: { select: { id: true, name: true, email: true } }
+        }
+      });
+      if (existingRecent) {
+        res.status(200).json({
+          success: true,
+          isDuplicate: true,
+          data: formatComplaint(existingRecent, req.user.role),
+          message: "Complaint was previously submitted. Returning confirmed report."
+        });
+        return;
+      }
       const complaint = await prisma.complaint.create({
         data: {
           reference,
@@ -1894,95 +1936,112 @@ router3.patch("/:id/status", authenticateToken, requireRole("STAFF", "ADMIN"), a
       res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Invalid status update data" });
       return;
     }
-    const { toStatus, note, isCitizenVisible, explanation } = parsed.data;
-    const complaint = await prisma.complaint.findUnique({
-      where: { id },
-      include: { department: true }
-    });
-    if (!complaint) {
-      res.status(404).json({ success: false, error: "Complaint not found." });
-      return;
-    }
-    if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
-      res.status(403).json({ success: false, error: "Access denied: You can only update complaints assigned to your department." });
-      return;
-    }
-    const currentStatus = complaint.status;
-    const allowed = STATUS_TRANSITIONS[currentStatus] || [];
-    if (!allowed.includes(toStatus)) {
-      res.status(400).json({
-        success: false,
-        error: `Invalid transition from "${currentStatus}" to "${toStatus}". Allowed transitions: ${allowed.join(", ")}`
+    const { toStatus, note, isCitizenVisible, explanation, expectedStatus } = parsed.data;
+    const result = await prisma.$transaction(async (tx) => {
+      const complaint = await tx.complaint.findUnique({
+        where: { id },
+        include: { department: true }
       });
-      return;
-    }
-    if (currentStatus === "RESOLVED" && toStatus === "ASSIGNED") {
-      if (req.user.role !== "ADMIN") {
-        res.status(403).json({ success: false, error: "Only administrators can reopen a resolved complaint." });
-        return;
+      if (!complaint) {
+        const notFoundErr = new Error("Complaint not found.");
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
       }
-      if (!explanation || explanation.trim().length < 5) {
-        res.status(400).json({ success: false, error: "An explanation is required to reopen a resolved complaint." });
-        return;
+      if (expectedStatus && complaint.status !== expectedStatus) {
+        const conflictErr = new Error(
+          `Conflict: This complaint status was updated to "${complaint.status}" by another user. Please refresh and review before modifying.`
+        );
+        conflictErr.statusCode = 409;
+        throw conflictErr;
       }
-    }
-    if (currentStatus === "IN_PROGRESS" && toStatus === "ASSIGNED") {
-      if (!explanation || explanation.trim().length < 5) {
-        res.status(400).json({ success: false, error: "An explanation is required when moving a complaint back to Assigned." });
-        return;
+      if (req.user.role === "STAFF" && complaint.departmentId !== req.user.departmentId) {
+        const forbiddenErr = new Error("Access denied: You can only update complaints assigned to your department.");
+        forbiddenErr.statusCode = 403;
+        throw forbiddenErr;
       }
-    }
-    const updateData = {
-      status: toStatus
-    };
-    if (toStatus === "RESOLVED") {
-      updateData.resolvedAt = /* @__PURE__ */ new Date();
-      updateData.resolutionNote = note || "Issue addressed and resolved by department staff.";
-    } else if (currentStatus === "RESOLVED") {
-      updateData.resolvedAt = null;
-      updateData.resolutionNote = null;
-    }
-    const updated = await prisma.complaint.update({
-      where: { id },
-      data: updateData,
-      include: {
-        serviceArea: true,
-        category: true,
-        department: true,
-        attachments: true,
-        citizen: { select: { id: true, name: true, email: true } }
+      const currentStatus = complaint.status;
+      const allowed = STATUS_TRANSITIONS[currentStatus] || [];
+      if (!allowed.includes(toStatus)) {
+        const badTransitionErr = new Error(
+          `Invalid transition from "${currentStatus}" to "${toStatus}". Allowed transitions: ${allowed.join(", ")}`
+        );
+        badTransitionErr.statusCode = 400;
+        throw badTransitionErr;
       }
-    });
-    const statusNote = note || explanation || `Status updated from ${currentStatus} to ${toStatus}.`;
-    await prisma.statusHistory.create({
-      data: {
+      if (currentStatus === "RESOLVED" && toStatus === "ASSIGNED") {
+        if (req.user.role !== "ADMIN") {
+          const authErr = new Error("Only administrators can reopen a resolved complaint.");
+          authErr.statusCode = 403;
+          throw authErr;
+        }
+        if (!explanation || explanation.trim().length < 5) {
+          const expErr = new Error("An explanation is required to reopen a resolved complaint.");
+          expErr.statusCode = 400;
+          throw expErr;
+        }
+      }
+      if (currentStatus === "IN_PROGRESS" && toStatus === "ASSIGNED") {
+        if (!explanation || explanation.trim().length < 5) {
+          const expErr = new Error("An explanation is required when moving a complaint back to Assigned.");
+          expErr.statusCode = 400;
+          throw expErr;
+        }
+      }
+      const updateData = {
+        status: toStatus
+      };
+      if (toStatus === "RESOLVED") {
+        updateData.resolvedAt = /* @__PURE__ */ new Date();
+        updateData.resolutionNote = note || "Issue addressed and resolved by department staff.";
+      } else if (currentStatus === "RESOLVED") {
+        updateData.resolvedAt = null;
+        updateData.resolutionNote = null;
+      }
+      const updated = await tx.complaint.update({
+        where: { id },
+        data: updateData,
+        include: {
+          serviceArea: true,
+          category: true,
+          department: true,
+          attachments: true,
+          citizen: { select: { id: true, name: true, email: true } }
+        }
+      });
+      const statusNote = note || explanation || `Status updated from ${currentStatus} to ${toStatus}.`;
+      await tx.statusHistory.create({
+        data: {
+          complaintId: id,
+          fromStatus: currentStatus,
+          toStatus,
+          note: statusNote,
+          isCitizenVisible,
+          changedById: req.user.id
+        }
+      });
+      await logAuditEvent(tx, {
         complaintId: id,
-        fromStatus: currentStatus,
-        toStatus,
-        note: statusNote,
-        isCitizenVisible,
-        changedById: req.user.id
-      }
-    });
-    await logAuditEvent(prisma, {
-      complaintId: id,
-      actorId: req.user.id,
-      action: "STATUS_CHANGE",
-      details: {
-        from: currentStatus,
-        to: toStatus,
-        note: statusNote,
-        isCitizenVisible
-      }
+        actorId: req.user.id,
+        action: "STATUS_CHANGE",
+        details: {
+          from: currentStatus,
+          to: toStatus,
+          note: statusNote,
+          isCitizenVisible
+        }
+      });
+      return updated;
     });
     res.json({
       success: true,
-      data: formatComplaint(updated, req.user.role),
+      data: formatComplaint(result, req.user.role),
       message: `Status successfully updated to ${toStatus}.`
     });
   } catch (err) {
     console.error("[Status Update Error]", err);
-    res.status(500).json({ success: false, error: "Failed to update complaint status." });
+    const status = err.statusCode || 500;
+    const code = status === 409 ? "CONFLICT" : void 0;
+    res.status(status).json({ success: false, code, error: err.message || "Failed to update complaint status." });
   }
 });
 router3.post("/:id/flag-review", authenticateToken, requireRole("STAFF"), async (req, res) => {
@@ -1997,53 +2056,59 @@ router3.post("/:id/flag-review", authenticateToken, requireRole("STAFF"), async 
       res.status(400).json({ success: false, error: parsed.error.errors[0]?.message || "Reason is required" });
       return;
     }
-    const complaint = await prisma.complaint.findUnique({ where: { id } });
-    if (!complaint) {
-      res.status(404).json({ success: false, error: "Complaint not found." });
-      return;
-    }
-    if (complaint.departmentId !== req.user.departmentId) {
-      res.status(403).json({ success: false, error: "Access denied: You can only flag complaints assigned to your department." });
-      return;
-    }
-    const updated = await prisma.complaint.update({
-      where: { id },
-      data: {
-        reviewState: "REQUIRED"
-      },
-      include: {
-        serviceArea: true,
-        category: true,
-        department: true,
-        attachments: true,
-        citizen: { select: { id: true, name: true, email: true } }
+    const result = await prisma.$transaction(async (tx) => {
+      const complaint = await tx.complaint.findUnique({ where: { id } });
+      if (!complaint) {
+        const notFoundErr = new Error("Complaint not found.");
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
       }
-    });
-    await prisma.statusHistory.create({
-      data: {
+      if (complaint.departmentId !== req.user.departmentId) {
+        const forbiddenErr = new Error("Access denied: You can only flag complaints assigned to your department.");
+        forbiddenErr.statusCode = 403;
+        throw forbiddenErr;
+      }
+      const updated = await tx.complaint.update({
+        where: { id },
+        data: {
+          reviewState: "REQUIRED"
+        },
+        include: {
+          serviceArea: true,
+          category: true,
+          department: true,
+          attachments: true,
+          citizen: { select: { id: true, name: true, email: true } }
+        }
+      });
+      await tx.statusHistory.create({
+        data: {
+          complaintId: id,
+          fromStatus: complaint.status,
+          toStatus: complaint.status,
+          note: `Flagged for administrative review: ${parsed.data.reason}`,
+          isCitizenVisible: false,
+          // Internal note
+          changedById: req.user.id
+        }
+      });
+      await logAuditEvent(tx, {
         complaintId: id,
-        fromStatus: complaint.status,
-        toStatus: complaint.status,
-        note: `Flagged for administrative review: ${parsed.data.reason}`,
-        isCitizenVisible: false,
-        // Internal note
-        changedById: req.user.id
-      }
-    });
-    await logAuditEvent(prisma, {
-      complaintId: id,
-      actorId: req.user.id,
-      action: "FLAG_FOR_REVIEW",
-      details: { reason: parsed.data.reason }
+        actorId: req.user.id,
+        action: "FLAG_FOR_REVIEW",
+        details: { reason: parsed.data.reason }
+      });
+      return updated;
     });
     res.json({
       success: true,
-      data: formatComplaint(updated, req.user.role),
+      data: formatComplaint(result, req.user.role),
       message: "Complaint flagged for administrator review."
     });
   } catch (err) {
     console.error("[Flag For Review Error]", err);
-    res.status(500).json({ success: false, error: "Failed to flag complaint for review." });
+    const status = err.statusCode || 500;
+    res.status(status).json({ success: false, error: err.message || "Failed to flag complaint for review." });
   }
 });
 router3.post("/:id/manual-review", authenticateToken, requireRole("ADMIN"), async (req, res) => {
@@ -2059,70 +2124,77 @@ router3.post("/:id/manual-review", authenticateToken, requireRole("ADMIN"), asyn
       return;
     }
     const { categoryId, departmentId, notes } = parsed.data;
-    const [category, department, complaint] = await Promise.all([
-      prisma.category.findUnique({ where: { id: categoryId } }),
-      prisma.department.findUnique({ where: { id: departmentId } }),
-      prisma.complaint.findUnique({ where: { id } })
-    ]);
-    if (!complaint) {
-      res.status(404).json({ success: false, error: "Complaint not found." });
-      return;
-    }
-    if (!category) {
-      res.status(400).json({ success: false, error: "Category not found." });
-      return;
-    }
-    if (!department) {
-      res.status(400).json({ success: false, error: "Department not found." });
-      return;
-    }
-    const updated = await prisma.complaint.update({
-      where: { id },
-      data: {
-        categoryId,
-        departmentId,
-        reviewState: "APPROVED",
-        status: "ASSIGNED"
-        // Safe assignment moves to ASSIGNED
-      },
-      include: {
-        serviceArea: true,
-        category: true,
-        department: true,
-        attachments: true,
-        citizen: { select: { id: true, name: true, email: true } }
+    const result = await prisma.$transaction(async (tx) => {
+      const [category, department, complaint] = await Promise.all([
+        tx.category.findUnique({ where: { id: categoryId } }),
+        tx.department.findUnique({ where: { id: departmentId } }),
+        tx.complaint.findUnique({ where: { id } })
+      ]);
+      if (!complaint) {
+        const notFoundErr = new Error("Complaint not found.");
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
       }
-    });
-    await prisma.statusHistory.create({
-      data: {
+      if (!category) {
+        const catErr = new Error("Category not found.");
+        catErr.statusCode = 400;
+        throw catErr;
+      }
+      if (!department) {
+        const deptErr = new Error("Department not found.");
+        deptErr.statusCode = 400;
+        throw deptErr;
+      }
+      const updated = await tx.complaint.update({
+        where: { id },
+        data: {
+          categoryId,
+          departmentId,
+          reviewState: "APPROVED",
+          status: "ASSIGNED"
+          // Safe assignment moves to ASSIGNED
+        },
+        include: {
+          serviceArea: true,
+          category: true,
+          department: true,
+          attachments: true,
+          citizen: { select: { id: true, name: true, email: true } }
+        }
+      });
+      await tx.statusHistory.create({
+        data: {
+          complaintId: id,
+          fromStatus: complaint.status,
+          toStatus: "ASSIGNED",
+          note: `Administrative review completed: Category set to "${category.name}", assigned to "${department.name}". Notes: ${notes}`,
+          isCitizenVisible: true,
+          changedById: req.user.id
+        }
+      });
+      await logAuditEvent(tx, {
         complaintId: id,
-        fromStatus: complaint.status,
-        toStatus: "ASSIGNED",
-        note: `Administrative review completed: Category set to "${category.name}", assigned to "${department.name}". Notes: ${notes}`,
-        isCitizenVisible: true,
-        changedById: req.user.id
-      }
-    });
-    await logAuditEvent(prisma, {
-      complaintId: id,
-      actorId: req.user.id,
-      action: "MANUAL_REVIEW_DECISION",
-      details: {
-        categoryId,
-        categoryName: category.name,
-        departmentId,
-        departmentName: department.name,
-        notes
-      }
+        actorId: req.user.id,
+        action: "MANUAL_REVIEW_DECISION",
+        details: {
+          categoryId,
+          categoryName: category.name,
+          departmentId,
+          departmentName: department.name,
+          notes
+        }
+      });
+      return updated;
     });
     res.json({
       success: true,
-      data: formatComplaint(updated, req.user.role),
+      data: formatComplaint(result, req.user.role),
       message: "Administrative review decision applied successfully."
     });
   } catch (err) {
     console.error("[Manual Review Error]", err);
-    res.status(500).json({ success: false, error: "Failed to record manual review decision." });
+    const status = err.statusCode || 500;
+    res.status(status).json({ success: false, error: err.message || "Failed to record manual review decision." });
   }
 });
 router3.post("/:id/override-scores", authenticateToken, requireRole("ADMIN"), async (req, res) => {
@@ -2138,61 +2210,66 @@ router3.post("/:id/override-scores", authenticateToken, requireRole("ADMIN"), as
       return;
     }
     const { priority, urgency, feasibility, reason } = parsed.data;
-    const complaint = await prisma.complaint.findUnique({ where: { id } });
-    if (!complaint) {
-      res.status(404).json({ success: false, error: "Complaint not found." });
-      return;
-    }
-    const updated = await prisma.complaint.update({
-      where: { id },
-      data: {
-        overridePriority: priority !== void 0 ? priority : complaint.overridePriority,
-        overrideUrgency: urgency !== void 0 ? urgency : complaint.overrideUrgency,
-        overrideFeasibility: feasibility !== void 0 ? feasibility : complaint.overrideFeasibility,
-        overrideReason: reason,
-        overriddenById: req.user.id,
-        overriddenAt: /* @__PURE__ */ new Date()
-      },
-      include: {
-        serviceArea: true,
-        category: true,
-        department: true,
-        attachments: true,
-        citizen: { select: { id: true, name: true, email: true } }
+    const result = await prisma.$transaction(async (tx) => {
+      const complaint = await tx.complaint.findUnique({ where: { id } });
+      if (!complaint) {
+        const notFoundErr = new Error("Complaint not found.");
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
       }
-    });
-    await prisma.statusHistory.create({
-      data: {
-        complaintId: id,
-        fromStatus: complaint.status,
-        toStatus: complaint.status,
-        note: `Administrative score override applied: ${reason}`,
-        isCitizenVisible: false,
-        changedById: req.user.id
-      }
-    });
-    await logAuditEvent(prisma, {
-      complaintId: id,
-      actorId: req.user.id,
-      action: "SCORE_OVERRIDE",
-      details: {
-        previous: {
-          priority: complaint.overridePriority ?? complaint.priority,
-          urgency: complaint.overrideUrgency ?? complaint.urgency,
-          feasibility: complaint.overrideFeasibility ?? complaint.feasibility
+      const updated = await tx.complaint.update({
+        where: { id },
+        data: {
+          overridePriority: priority !== void 0 ? priority : complaint.overridePriority,
+          overrideUrgency: urgency !== void 0 ? urgency : complaint.overrideUrgency,
+          overrideFeasibility: feasibility !== void 0 ? feasibility : complaint.overrideFeasibility,
+          overrideReason: reason,
+          overriddenById: req.user.id,
+          overriddenAt: /* @__PURE__ */ new Date()
         },
-        overriddenTo: { priority, urgency, feasibility },
-        reason
-      }
+        include: {
+          serviceArea: true,
+          category: true,
+          department: true,
+          attachments: true,
+          citizen: { select: { id: true, name: true, email: true } }
+        }
+      });
+      await tx.statusHistory.create({
+        data: {
+          complaintId: id,
+          fromStatus: complaint.status,
+          toStatus: complaint.status,
+          note: `Administrative score override applied: ${reason}`,
+          isCitizenVisible: false,
+          changedById: req.user.id
+        }
+      });
+      await logAuditEvent(tx, {
+        complaintId: id,
+        actorId: req.user.id,
+        action: "SCORE_OVERRIDE",
+        details: {
+          previous: {
+            priority: complaint.overridePriority ?? complaint.priority,
+            urgency: complaint.overrideUrgency ?? complaint.urgency,
+            feasibility: complaint.overrideFeasibility ?? complaint.feasibility
+          },
+          overriddenTo: { priority, urgency, feasibility },
+          reason
+        }
+      });
+      return updated;
     });
     res.json({
       success: true,
-      data: formatComplaint(updated, req.user.role),
+      data: formatComplaint(result, req.user.role),
       message: "Scores overridden successfully."
     });
   } catch (err) {
     console.error("[Score Override Error]", err);
-    res.status(500).json({ success: false, error: "Failed to override scores." });
+    const status = err.statusCode || 500;
+    res.status(status).json({ success: false, error: err.message || "Failed to override scores." });
   }
 });
 router3.post("/:id/retry-analysis", authenticateToken, requireRole("STAFF", "ADMIN"), async (req, res) => {
@@ -2670,6 +2747,15 @@ function createApp() {
   app.use((err, _req, res, _next) => {
     console.error("[Unhandled Server Error]", err);
     if (res.headersSent) return;
+    const isDbError = err?.name === "PrismaClientInitializationError" || err?.name === "PrismaClientKnownRequestError" || err?.message?.includes("DATABASE_URL") || err?.message?.includes("Can't reach database server");
+    if (isDbError) {
+      res.status(503).json({
+        success: false,
+        error: "The database service is currently unreachable or initializing. Please verify database connectivity.",
+        code: "DATABASE_UNAVAILABLE"
+      });
+      return;
+    }
     const statusCode = err.status || err.statusCode || 500;
     res.status(statusCode).json({
       success: false,
