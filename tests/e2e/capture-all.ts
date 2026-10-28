@@ -58,7 +58,8 @@ async function main() {
   await page.fill('#password', 'Citizen123!');
   await page.click('button[type="submit"]');
   await page.waitForURL('**/dashboard');
-  await page.waitForSelector('table tbody tr, text=No complaints', { timeout: 5000 }).catch(() => {});
+  await page.waitForLoadState('networkidle');
+  await page.waitForSelector('table tbody tr', { timeout: 10000 }).catch(() => {});
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'polish-5-citizen-dashboard-1440.png') });
