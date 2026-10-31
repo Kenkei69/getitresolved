@@ -2799,3 +2799,4 @@ function handler(req, res) {
     }
   }
 }
+module.exports = handler; module.exports.default = handler;

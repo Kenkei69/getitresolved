@@ -7,7 +7,7 @@
     "vercel-build": "prisma generate && npm run build:client && npm run build:server && npm run build:api",
     "build:client": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
-    "build:api": "esbuild src/server/vercel-handler.ts --bundle --platform=node --target=node20 --packages=external --outfile=api/index.js",
+    "build:api": "esbuild src/server/vercel-handler.ts --bundle --platform=node --target=node20 --packages=external --footer:js=\"module.exports = handler; module.exports.default = handler;\" --outfile=api/index.js",
     "build": "npm run build:client && npm run build:server && npm run build:api",
     "start": "node dist/server/index.js",
     "dev:server": "tsx watch src/server/index.ts",
@@ -21,9 +21,9 @@
     "db:init-meta": "SEED_DEMO_DATA=false tsx prisma/seed.ts",
     "db:setup": "prisma migrate deploy && tsx prisma/seed.ts",
     "db:verify": "tsx scripts/verify-production-db.ts",
-    "test": "tsx --test tests/unit/**/*.test.ts tests/integration/**/*.test.ts",
-    "test:e2e": "tsx --test tests/e2e/**/*.test.ts",
-    "test:all": "tsx --test tests/**/*.test.ts",
+    "test": "NODE_ENV=test tsx --test tests/unit/*.test.ts tests/integration/*.test.ts",
+    "test:e2e": "NODE_ENV=test tsx --test tests/e2e/*.test.ts",
+    "test:all": "NODE_ENV=test tsx --test tests/unit/*.test.ts tests/integration/*.test.ts tests/e2e/*.test.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

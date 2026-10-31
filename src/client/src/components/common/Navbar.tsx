@@ -257,13 +257,6 @@ export const Navbar: React.FC = () => {
               ) : (
                 <div className="flex items-center gap-2">
                   <Link
-                    to="/scoring-guide"
-                    className="hidden md:inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl transition-colors"
-                  >
-                    <HelpCircle className="w-4 h-4 text-slate-400" aria-hidden="true" />
-                    Scoring Guide
-                  </Link>
-                  <Link
                     to="/login"
                     className="px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors min-h-[38px] sm:min-h-[40px] inline-flex items-center"
                   >
